@@ -1,7 +1,7 @@
 "use client";
 
-import { ReactNode } from "react";
-import { api } from "@/lib/api";
+import { ReactNode, useEffect, useState } from "react";
+import { api, getAdmin } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
 
 interface Stats {
@@ -9,6 +9,8 @@ interface Stats {
   bookingsThisMonth: number;
   ordersThisMonth: number;
   totalUsers: number;
+  newUsersThisMonth?: number;
+  forumThreadsThisMonth?: number;
   popularFacility: string;
   pendingReview: number;
   recentRegistrants: {
@@ -35,34 +37,48 @@ const Icon = ({ children }: { children: ReactNode }) => (
   </svg>
 );
 
+const formatDate = (iso: string) => {
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+};
+
 export default function DashboardPage() {
-  const { data, loading, error } = useLoad(() =>
-    api<Stats>("/admin/stats")
-  );
+  const { data, loading, error } = useLoad(() => api<Stats>("/admin/stats"));
+  const [adminName, setAdminName] = useState("Admin");
+  const [today, setToday] = useState("");
+
+  // Diisi setelah halaman tampil di browser supaya tidak bentrok dengan render server.
+  useEffect(() => {
+    const u = getAdmin();
+    if (u?.name) setAdminName(u.name);
+    setToday(
+      new Date().toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      })
+    );
+  }, []);
 
   if (loading) {
     return <div className="a-empty">Memuat...</div>;
   }
 
   if (error || !data) {
-    return (
-      <div className="a-empty">
-        {error || "Gagal memuat."}
-      </div>
-    );
+    return <div className="a-empty">{error || "Gagal memuat."}</div>;
   }
 
-  const today = new Date().toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-
-  const stats = [
+  const stats: { label: string; value: string | number; icon: ReactNode }[] = [
     {
       label: "Total Pendaftar",
-      value: "20",
+      value: data.totalPendaftar,
       icon: (
         <>
           <circle cx="12" cy="7" r="4" />
@@ -72,7 +88,7 @@ export default function DashboardPage() {
     },
     {
       label: "Menunggu Verifikasi",
-      value: "5",
+      value: data.pendingReview,
       icon: (
         <>
           <circle cx="12" cy="12" r="9" />
@@ -82,7 +98,7 @@ export default function DashboardPage() {
     },
     {
       label: "Jadwal Bulan Ini",
-      value: "7",
+      value: data.bookingsThisMonth,
       icon: (
         <>
           <rect x="3" y="5" width="18" height="16" rx="2" />
@@ -92,7 +108,7 @@ export default function DashboardPage() {
     },
     {
       label: "Layanan Terpopuler",
-      value: "Kelas Tari",
+      value: data.popularFacility,
       icon: (
         <>
           <rect x="6" y="4" width="12" height="17" rx="2" />
@@ -102,11 +118,13 @@ export default function DashboardPage() {
     },
   ];
 
+  const recent = data.recentRegistrants ?? [];
+
   return (
     <>
       {/* HERO */}
       <section className="m-hero">
-        <h1>Sugeng Rawuh, Admin!</h1>
+        <h1>Sugeng Rawuh, {adminName}!</h1>
         <p>Statistik aktivitas pengguna bulan ini</p>
         <small>{today}</small>
       </section>
@@ -127,9 +145,7 @@ export default function DashboardPage() {
         <div className="m-recent-head">
           <h2>Pendaftar Terbaru</h2>
 
-          <a href="/pendaftar">
-            Lihat semua
-          </a>
+          <a href="/pendaftar">Lihat semua</a>
         </div>
 
         <div className="m-table-box">
@@ -144,12 +160,20 @@ export default function DashboardPage() {
             </thead>
 
             <tbody>
-              <tr>
-                <td>Haechan</td>
-                <td>Kelas Tari Wisata (Sekali Kunjungan)</td>
-                <td>16/01/2026</td>
-                <td>Belum diverifikasi</td>
-              </tr>
+              {recent.length === 0 ? (
+                <tr>
+                  <td colSpan={4}>Belum ada pendaftar.</td>
+                </tr>
+              ) : (
+                recent.map((r, i) => (
+                  <tr key={`${r.email}-${i}`}>
+                    <td>{r.name}</td>
+                    <td>{r.facility}</td>
+                    <td>{formatDate(r.date)}</td>
+                    <td>{r.status}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
