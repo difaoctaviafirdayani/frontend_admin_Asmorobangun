@@ -5,10 +5,15 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Asmorobangun Admin",
-  description: "Dashboard admin Sanggar Wayang Topeng Malangan Asmorobangun",
+  description:
+    "Dashboard admin Sanggar Wayang Topeng Malangan Asmorobangun",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   return (
     <html lang="id">
       <body>
