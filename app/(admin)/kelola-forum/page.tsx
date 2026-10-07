@@ -1,89 +1,141 @@
 "use client";
-import { FormEvent, useState } from "react";
-import { api } from "@/lib/api";
-import { useLoad } from "@/lib/useLoad";
-import { formatDate, formatDateTime } from "@/lib/format";
-import Modal from "@/components/Modal";
-import { useToast } from "@/components/Toast";
+import { useState } from "react";
+import { truncate } from "@/lib/format";
 
-interface ThreadSummary { id: string; category: string; title: string; userName: string; date: string; replyCount: number }
-interface Thread extends ThreadSummary {
-  content: string;
-  replies: { id: string; userName: string; content: string; date: string }[];
+interface ForumItem {
+  id: string;
+  topic: string;
+  category: string;
+  username: string;
+  date: string;
 }
 
 export default function KelolaForumPage() {
-  const toast = useToast();
-  const { data, loading, error, reload } = useLoad(() => api<{ threads: ThreadSummary[] }>("/forum"));
-  const [thread, setThread] = useState<Thread | null>(null);
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("");
-  const [content, setContent] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  async function open(id: string) {
-    try {
-      const { thread: t } = await api<{ thread: Thread }>(`/forum/${id}`);
-      setThread(t);
-      setTitle(t.title);
-      setCategory(t.category);
-      setContent(t.content);
-    } catch (e: any) {
-      toast(e.message);
+  const [forumList] = useState<ForumItem[]>([
+    {
+      id: "1",
+      topic: "Rekomendasi Rute",
+      category: "Diskusi Umum",
+      username: "Haechan",
+      date: "06 Juni 2026"
     }
-  }
-
-  async function save(e: FormEvent) {
-    e.preventDefault();
-    if (!thread) return;
-    setSaving(true);
-    try {
-      await api(`/forum/${thread.id}`, { method: "PATCH", body: { title, category, content } });
-      toast("Diskusi diperbarui.");
-      setThread(null);
-      reload();
-    } catch (err: any) {
-      toast(err.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function del(id: string, name: string) {
-    if (!confirm(`Hapus diskusi "${name}" beserta semua balasannya?`)) return;
-    try {
-      await api(`/forum/${id}`, { method: "DELETE" });
-      toast("Diskusi dihapus.");
-      setThread(null);
-      reload();
-    } catch (err: any) {
-      toast(err.message);
-    }
-  }
-
-  const rows = data?.threads || [];
+  ]);
 
   return (
-    <>
-      <div className="a-card">
-        <div className="a-table-wrap">
-          <table className="a-table">
-            <thead><tr><th>Judul</th><th>Kategori</th><th>Penulis</th><th>Balasan</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+    <div style={{ padding: "24px", maxWidth: "100%", margin: "0 auto" }}>
+      {/* Judul Halaman dengan Font Margarine */}
+      <h1 
+        style={{ 
+          fontSize: "32px", 
+          fontWeight: "normal", 
+          color: "#3A2A1A", 
+          marginBottom: "12px", 
+          fontFamily: "'Margarine', cursive, sans-serif" 
+        }}
+      >
+        Kelola Forum
+      </h1>
+
+      {/* Dropdown Semua Kategori */}
+      <div style={{ marginBottom: "20px" }}>
+        <div 
+          style={{ 
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            backgroundColor: "#FAF6ED",
+            border: "1.5px solid #D4BBA5",
+            borderRadius: "8px",
+            padding: "8px 16px",
+            fontSize: "14px",
+            color: "#3A2A1A",
+            cursor: "pointer",
+            width: "180px"
+          }}
+        >
+          <span>Semua Kategori</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
+      </div>
+
+      {/* Kotak Tabel dengan Warna FDFCEA Persis Figma */}
+      <div 
+        style={{ 
+          backgroundColor: "#FDFCEA", 
+          border: "1.5px solid #D4BBA5", 
+          borderRadius: "12px", 
+          overflow: "hidden" 
+        }}
+      >
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+            <thead>
+              <tr style={{ borderBottom: "1.5px solid #D4BBA5", color: "#3A2A1A" }}>
+                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" }}>TOPIK</th>
+                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" }}>KATEGORI</th>
+                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" }}>USERNAME</th>
+                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" }}>TANGGAL</th>
+                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px", textAlign: "center" }}>AKSI</th>
+              </tr>
+            </thead>
             <tbody>
-              {loading && <tr><td colSpan={6}>Memuat...</td></tr>}
-              {error && <tr><td colSpan={6} className="a-empty">{error}</td></tr>}
-              {!loading && !error && rows.length === 0 && <tr><td colSpan={6} className="a-empty">Belum ada diskusi.</td></tr>}
-              {rows.map((t) => (
-                <tr key={t.id}>
-                  <td><strong>{t.title}</strong></td>
-                  <td>{t.category}</td>
-                  <td>{t.userName}</td>
-                  <td>{t.replyCount}</td>
-                  <td>{formatDate(t.date)}</td>
-                  <td>
-                    <div className="a-actions">
-                      <button className="a-btn a-btn-ghost a-btn-sm" onClick={() => open(t.id)}>Moderasi</button>
-                      <button className="a-btn a-btn-danger a-btn-sm" onClick={() => del(t.id, t.title)}>Hapus</button>
+              {forumList.map((row) => (
+                <tr key={row.id} style={{ borderBottom: "1px solid #E6D8C3" }}>
+                  <td style={{ padding: "16px 20px", color: "#3A2A1A", verticalAlign: "middle", maxWidth: "250px" }}>
+                    {truncate(row.topic, 50)}
+                  </td>
+                  <td style={{ padding: "16px 20px", color: "#5A4A3A", verticalAlign: "middle" }}>{row.category}</td>
+                  <td style={{ padding: "16px 20px", color: "#5A4A3A", verticalAlign: "middle" }}>{row.username}</td>
+                  <td style={{ padding: "16px 20px", color: "#5A4A3A", verticalAlign: "middle" }}>{row.date}</td>
+                  <td style={{ padding: "16px 20px", textAlign: "center", verticalAlign: "middle" }}>
+                    <div style={{ display: "flex", gap: "10px", justifyContent: "center", alignItems: "center" }}>
+                      {/* Tombol Ikon Lingkaran (Edit) */}
+                      <button 
+                        type="button"
+                        title="Edit"
+                        style={{ 
+                          width: "32px", 
+                          height: "32px", 
+                          borderRadius: "50%", 
+                          border: "1px solid #C4A482", 
+                          background: "transparent", 
+                          cursor: "pointer", 
+                          display: "inline-flex", 
+                          alignItems: "center", 
+                          justifyContent: "center", 
+                          color: "#3A2A1A" 
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                      </button>
+
+                      {/* Tombol Ikon Lingkaran (Hapus) */}
+                      <button 
+                        type="button"
+                        title="Hapus"
+                        style={{ 
+                          width: "32px", 
+                          height: "32px", 
+                          borderRadius: "50%", 
+                          border: "1px solid #C4A482", 
+                          background: "transparent", 
+                          cursor: "pointer", 
+                          display: "inline-flex", 
+                          alignItems: "center", 
+                          justifyContent: "center", 
+                          color: "#3A2A1A" 
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -92,33 +144,6 @@ export default function KelolaForumPage() {
           </table>
         </div>
       </div>
-
-      {thread && (
-        <Modal title="Moderasi diskusi" onClose={() => setThread(null)} wide>
-          <form onSubmit={save}>
-            <div className="a-field"><label>Judul</label><input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-            <div className="a-field"><label>Kategori</label><input value={category} onChange={(e) => setCategory(e.target.value)} /></div>
-            <div className="a-field"><label>Isi diskusi</label><textarea rows={5} value={content} onChange={(e) => setContent(e.target.value)} /></div>
-            <div className="a-muted" style={{ marginBottom: 6 }}>Ditulis oleh {thread.userName} · {formatDateTime(thread.date)}</div>
-
-            <div className="a-sublabel" style={{ marginTop: 12 }}>Balasan ({thread.replies.length})</div>
-            <div className="a-chat">
-              {thread.replies.length === 0 && <div className="a-muted">Belum ada balasan.</div>}
-              {thread.replies.map((r) => (
-                <div className="a-chat-msg" key={r.id}>
-                  {r.content}
-                  <div className="a-muted">{r.userName} · {formatDateTime(r.date)}</div>
-                </div>
-              ))}
-            </div>
-            <div className="a-modal-foot">
-              <button type="button" className="a-btn a-btn-danger" onClick={() => del(thread.id, thread.title)}>Hapus diskusi</button>
-              <button type="button" className="a-btn a-btn-ghost" onClick={() => setThread(null)}>Batal</button>
-              <button className="a-btn a-btn-primary" disabled={saving}>{saving ? "Menyimpan..." : "Simpan"}</button>
-            </div>
-          </form>
-        </Modal>
-      )}
-    </>
+    </div>
   );
 }
