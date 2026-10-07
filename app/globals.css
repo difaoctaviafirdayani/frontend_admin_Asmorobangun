@@ -181,3 +181,61 @@ h1, h2, h3, h4 { margin: 0; color: var(--wood-900); }
 .a-login-card p { text-align: center; margin: 0 0 20px; color: var(--ink-soft); font-size: 0.88rem; }
 .a-error { background: #f4d9d9; color: var(--danger); padding: 9px 12px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 12px; }
 .a-login-logo-bg { background: var(--wood-900); border-radius: 12px; padding: 10px; margin-bottom: 12px; }
+
+/* ---------- Sidebar: judul kelompok ---------- */
+.a-nav { gap: 0; }
+.a-nav-group { display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; }
+.a-nav-title {
+  padding: 8px 12px 4px; font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--gold-300); opacity: 0.85;
+}
+
+/* ---------- Banner dashboard ---------- */
+.a-banner {
+  position: relative; overflow: hidden; border-radius: 18px; margin-bottom: 18px;
+  padding: 46px 20px; text-align: center; color: var(--cream-100);
+  background-color: var(--wood-900);
+  background-image:
+    linear-gradient(135deg, rgba(36, 22, 9, 0.93), rgba(85, 52, 30, 0.84)),
+    var(--banner-img, none);
+  background-size: cover; background-position: center;
+  box-shadow: 0 6px 18px rgba(36, 22, 9, 0.18);
+}
+.a-banner-title { margin: 0; color: #fff; font-size: clamp(1.3rem, 4.5vw, 1.9rem); line-height: 1.25; }
+.a-banner-sub { margin: 8px 0 4px; font-weight: 600; font-size: 1rem; color: var(--cream-100); }
+.a-banner-date { margin: 0; font-size: 0.9rem; color: var(--gold-300); min-height: 1.4em; }
+
+/* ---------- Perapian (tampilan tetap sama) ---------- */
+.a-hamburger { flex-shrink: 0; display: grid; place-items: center; line-height: 1; }
+.a-topbar-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.a-sidebar { overscroll-behavior: contain; }
+.a-nav { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.25) transparent; }
+.a-nav a { transition: background 0.15s; }
+.a-content { width: 100%; }
+.a-select { max-width: 100%; }
+.a-filters > * { min-width: 0; }
+.a-table td { overflow-wrap: anywhere; }
+.a-table th, .a-table td { min-width: 0; }
+.a-stat .value { overflow-wrap: anywhere; }
+.a-card h3 { font-size: 1rem; }
+.a-detail-img, .a-image-field .preview { max-width: 100%; }
+.a-modal { max-width: min(560px, 100%); }
+.a-modal.wide { max-width: min(760px, 100%); }
+
+.a-nav a:focus-visible, .a-hamburger:focus-visible, .a-logout-btn:focus-visible, .a-btn:focus-visible {
+  outline: 2px solid var(--gold-400); outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+  .a-content { padding: 14px; }
+  .a-banner { padding: 34px 16px; border-radius: 14px; }
+  .a-stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .a-stat { padding: 13px 14px; }
+  .a-stat .value { font-size: 1.4rem; }
+  .a-toolbar { align-items: stretch; }
+  .a-select { min-width: 0; width: 100%; }
+}
+
+/* Logo sidebar */
+.a-brand { min-width: 0; }
+.a-brand img { max-width: 100%; height: auto; max-height: 40px; object-fit: contain; }
