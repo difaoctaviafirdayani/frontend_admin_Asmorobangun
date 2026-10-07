@@ -1,9 +1,15 @@
 @font-face {
   font-family: "Upakarti Serong";
-  src: url("/fonts/Upakarti Serong.ttf") format("truetype");
+  src: url("/fonts/Upakarti-Serong.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+}
+
+:root {
+  --font-display: "Upakarti Serong", Georgia, serif;
+  --font-heading: var(--font-margarine, "Margarine"), cursive;
+  --font-body: var(--font-poppins, "Poppins"), Arial, sans-serif;
 }
 
 /* =========================================================
@@ -24,7 +30,7 @@ body {
 body {
   background: #f7f3ef;
   color: #3f2b22;
-  font-family: var(--font-poppins), Arial, sans-serif;
+  font-family: var(--font-body);
 }
 
 button,
@@ -106,8 +112,8 @@ a {
   left: 50%;
   transform: translateX(-50%);
 
-  font-family: "Upakarti Serong" !important;
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-size: 32px;
   font-weight: 400;
   line-height: 1;
 
@@ -212,7 +218,8 @@ a {
 
   text-decoration: none;
 
-  font-size: 13px;
+  font-family: var(--font-heading);
+  font-size: 14px;
   font-weight: 400;
 
   border-radius: 8px;
@@ -229,7 +236,7 @@ a {
 .m-group a.active {
   background: #ead9cd;
   color: #6e4635;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .m-drawer-foot {
@@ -299,20 +306,23 @@ a {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
+
+  text-align: center;
 
   padding: 42px 7vw;
 
-  background:
+  background-color: #5a3a2c;
+  background-image:
     linear-gradient(
       90deg,
       rgba(64, 40, 29, 0.78),
-      rgba(64, 40, 29, 0.42)
+      rgba(64, 40, 29, 0.35)
     ),
-    linear-gradient(
-      135deg,
-      #76513f,
-      #b88b70
-    );
+    url("/images/background-header.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
 
   color: #ffffff;
 
@@ -340,9 +350,9 @@ a {
 
   margin: 0 0 10px;
 
-  font-family: var(--font-poppins), Arial, sans-serif;
+  font-family: var(--font-heading);
   font-size: clamp(28px, 4vw, 42px);
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.15;
 
   color: #ffffff;
@@ -459,17 +469,18 @@ a {
 .m-recent-head h2 {
   margin: 0;
 
-  color: #3f2b22;
+  color: #351f12;
 
-  font-size: 20px;
-  font-weight: 600;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 400;
 }
 
 .m-recent-head a {
-  color: #8a5d47;
+  color: #351f12;
 
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 400;
 
   text-decoration: none;
 }
@@ -483,12 +494,12 @@ a {
 
   overflow-x: auto;
 
-  background: #ffffff;
+  background: #fdfcea;
 
-  border: 1px solid #eadfd7;
-  border-radius: 12px;
+  border: 1px solid #6c432d;
+  border-radius: 14px;
 
-  box-shadow: 0 3px 15px rgba(63, 43, 34, 0.04);
+  box-shadow: none;
 }
 
 .m-table {
@@ -496,34 +507,36 @@ a {
 
   border-collapse: collapse;
 
-  min-width: 650px;
+  min-width: 0;
 }
 
 .m-table th {
-  padding: 14px 16px;
+  padding: 16px;
 
-  background: #faf6f2;
+  background: transparent;
 
-  color: #8d7569;
+  color: #6c432d;
 
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.7px;
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
 
   text-align: left;
 
-  border-bottom: 1px solid #eadfd7;
+  border-bottom: 1px solid #6c432d;
 }
 
 .m-table td {
-  padding: 15px 16px;
+  padding: 16px;
 
-  color: #4a3429;
+  color: #6c432d;
 
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
+  line-height: 1.4;
 
-  border-bottom: 1px solid #f0e8e2;
+  border-bottom: 1px solid #ebe5d2;
 }
 
 .m-table tbody tr:last-child td {
@@ -531,7 +544,7 @@ a {
 }
 
 .m-table tbody tr:hover {
-  background: #fdfaf8;
+  background: rgba(122, 77, 58, 0.04);
 }
 
 
@@ -837,7 +850,7 @@ a {
 
 @media (max-width: 600px) {
   .m-logo {
-    font-size: 18px;
+    font-size: 26px;
   }
 
   .m-hero {
@@ -879,11 +892,11 @@ a {
   }
 
   .m-recent-head h2 {
-    font-size: 18px;
+    font-size: 20px;
   }
 
   .m-recent-head a {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .m-table th,
