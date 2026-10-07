@@ -15,7 +15,7 @@ const GROUPS = [
     items: [
       { href: "/pendaftar", label: "Pendaftar & Booking" },
       { href: "/pesanan-topeng", label: "Pesanan Topeng" },
-      { href: "/kelola-kelas", label: "Kelola Layanan" },
+      { href: "/kelola-layanan", label: "Kelola Layanan" },
     ],
   },
   {
