@@ -1,6 +1,24 @@
 "use client";
 import { useState } from "react";
-import { truncate } from "@/lib/format";
+import { formatDate, truncate } from "@/lib/format";
+import { api } from "@/lib/api";
+import { useLoad } from "@/lib/useLoad";
+import { useToast } from "@/components/Toast";
+import FormModal from "@/components/FormModal";
+import type { FieldDef } from "@/components/CrudPage";
+
+const FIELDS: FieldDef[] = [
+  { name: "title", label: "Judul", required: true },
+  {
+    name: "category",
+    label: "Kategori",
+    type: "select",
+    options: ["Berita", "Budaya", "Sejarah", "Acara"].map((c) => ({ value: c, label: c })),
+  },
+  { name: "excerpt", label: "Ringkasan", type: "textarea", rows: 2, hint: "Kosongkan untuk diambil otomatis dari isi artikel." },
+  { name: "content", label: "Isi artikel", type: "textarea", rows: 8, required: true },
+  { name: "image", label: "Gambar sampul", type: "image" },
+];
 
 interface Artikel {
   id: string;
@@ -11,15 +29,33 @@ interface Artikel {
 }
 
 export default function KelolaArtikelPage() {
-  const [artikelList] = useState<Artikel[]>([
-    {
-      id: "1",
-      title: "Tantangan Regenerasi: Menjaga Tangan-Tangan Pengukir Topeng Malangan",
-      category: "Budaya",
-      date: "3 Februari 2026",
-      content: ""
+    const toast = useToast();
+  const { data, error, reload } = useLoad(() => api<{ articles: Artikel[] }>("/articles"));
+  const artikelList: Artikel[] = (data?.articles || []).map((a) => ({ ...a, date: formatDate(a.date) }));
+  const [editing, setEditing] = useState<Artikel | "new" | null>(null);
+
+  async function simpan(values: Record<string, any>) {
+    if (editing === "new") {
+      await api("/articles", { method: "POST", body: values });
+      toast("Artikel ditambahkan.");
+    } else if (editing) {
+      await api(`/articles/${editing.id}`, { method: "PATCH", body: values });
+      toast("Artikel diperbarui.");
     }
-  ]);
+    setEditing(null);
+    reload();
+  }
+
+  async function hapus(row: Artikel) {
+    if (!confirm(`Hapus artikel "${row.title}"?`)) return;
+    try {
+      await api(`/articles/${row.id}`, { method: "DELETE" });
+      toast("Artikel dihapus.");
+      reload();
+    } catch (err: any) {
+      toast(err.message);
+    }
+  }
 
   return (
     <div style={{ padding: "24px", maxWidth: "100%", margin: "0 auto" }}>
@@ -35,11 +71,21 @@ export default function KelolaArtikelPage() {
       >
         Kelola Artikel
       </h1>
-
+            {editing && (
+        <FormModal
+          title={editing === "new" ? "Tulis artikel" : "Edit artikel"}
+          fields={FIELDS}
+          initial={editing === "new" ? { category: "Berita" } : (editing as any)}
+          onSubmit={simpan}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      
       {/* Tombol Tulis Artikel */}
       <div style={{ marginBottom: "20px" }}>
         <button 
           type="button"
+          onClick={() => setEditing("new")}
           style={{ 
             backgroundColor: "#5A3E2B", 
             color: "#FFFFFF", 
@@ -91,6 +137,7 @@ export default function KelolaArtikelPage() {
                       {/* Tombol Ikon Lingkaran (Edit) */}
                       <button 
                         type="button"
+                        onClick={() => setEditing(row)}
                         title="Edit"
                         style={{ 
                           width: "32px", 
@@ -114,6 +161,7 @@ export default function KelolaArtikelPage() {
                       {/* Tombol Ikon Lingkaran (Hapus) */}
                       <button 
                         type="button"
+                        onClick={() => hapus(row)}
                         title="Hapus"
                         style={{ 
                           width: "32px", 

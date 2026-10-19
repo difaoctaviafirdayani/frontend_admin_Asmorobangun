@@ -2,41 +2,62 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import { api, assetUrl } from "@/lib/api";
+import { useLoad } from "@/lib/useLoad";
+import { useToast } from "@/components/Toast";
+import FormModal from "@/components/FormModal";
+import type { FieldDef } from "@/components/CrudPage";
+
+const FIELDS: FieldDef[] = [
+  { name: "title", label: "Judul", required: true },
+  { name: "caption", label: "Keterangan", type: "textarea", rows: 3 },
+  { name: "image", label: "Foto", type: "image", required: true },
+];
 
 interface GaleriItem {
-  id: number;
+  id: string;
   title: string;
   description: string;
   image: string;
 }
 
 export default function KelolaGaleriPage() {
-  const [galeriList, setGaleriList] = useState<GaleriItem[]>([
-    {
-      id: 1,
-      title: "Gebrek senen Legian",
-      description: "Pementasan rutin setiap Senin Legi di Padepokan.",
-      image: "/images/tari-1.jpg",
-    },
-    {
-      id: 2,
-      title: "Gebrek senen Legian",
-      description: "Pementasan rutin setiap Senin Legi di Padepokan.",
-      image: "/images/tari-2.jpg",
-    },
-  ]);
+    const toast = useToast();
+  const { data, error, reload } = useLoad(() => api<{ gallery: any[] }>("/gallery"));
+  // backend memakai field caption; tampilan memakai description
+  const galeriList: GaleriItem[] = (data?.gallery || []).map((g) => ({ ...g, description: g.caption }));
+  const [editing, setEditing] = useState<GaleriItem | "new" | null>(null);
 
   const handleTambahFoto = () => {
-    alert("Fitur Tambah Foto diklik!");
+    setEditing("new");
   };
 
-  const handleEdit = (id: number) => {
-    alert(`Edit foto dengan ID: ${id}`);
+  const handleEdit = (id: string) => {
+    setEditing(galeriList.find((item) => item.id === id) || null);
   };
 
-  const handleDelete = (id: number) => {
-    setGaleriList(galeriList.filter((item) => item.id !== id));
+  const handleDelete = async (id: string) => {
+    if (!confirm("Hapus foto ini?")) return;
+    try {
+      await api(`/gallery/${id}`, { method: "DELETE" });
+      toast("Foto dihapus.");
+      reload();
+    } catch (err: any) {
+      toast(err.message);
+    }
   };
+
+  async function simpan(values: Record<string, any>) {
+    if (editing === "new") {
+      await api("/gallery", { method: "POST", body: values });
+      toast("Foto ditambahkan.");
+    } else if (editing) {
+      await api(`/gallery/${editing.id}`, { method: "PATCH", body: values });
+      toast("Foto diperbarui.");
+    }
+    setEditing(null);
+    reload();
+  }
 
   return (
     <div style={{ fontFamily: "var(--font-poppins), sans-serif", color: "#3A2A1A" }}>
@@ -51,7 +72,7 @@ export default function KelolaGaleriPage() {
       >
         Kelola Galeri
       </h1>
-
+            {error && <div style={{ color: "#A84C4C", marginBottom: "12px", fontSize: "14px" }}>{error}</div>}
       {/* Tombol Tambah Foto */}
       <button
         type="button"
@@ -111,7 +132,8 @@ export default function KelolaGaleriPage() {
                 }}
               >
                 <Image
-                  src={item.image}
+                  src={assetUrl(item.image) || "/images/tari-1.jpg"}
+                  unoptimized
                   alt={item.title}
                   fill
                   style={{ objectFit: "cover" }}
@@ -190,6 +212,15 @@ export default function KelolaGaleriPage() {
           </div>
         ))}
       </div>
+            {editing && (
+        <FormModal
+          title={editing === "new" ? "Tambah foto" : "Edit foto"}
+          fields={FIELDS}
+          initial={editing === "new" ? {} : (editing as any)}
+          onSubmit={simpan}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   );
 }

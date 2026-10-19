@@ -1,6 +1,17 @@
 "use client";
 import { useState } from "react";
-import { truncate } from "@/lib/format";
+import { formatDate, truncate } from "@/lib/format";
+import { api } from "@/lib/api";
+import { useLoad } from "@/lib/useLoad";
+import { useToast } from "@/components/Toast";
+import FormModal from "@/components/FormModal";
+import type { FieldDef } from "@/components/CrudPage";
+
+const FIELDS: FieldDef[] = [
+  { name: "title", label: "Judul", required: true },
+  { name: "category", label: "Kategori" },
+  { name: "content", label: "Isi diskusi", type: "textarea", rows: 6, required: true },
+];
 
 interface ForumItem {
   id: string;
@@ -11,15 +22,45 @@ interface ForumItem {
 }
 
 export default function KelolaForumPage() {
-  const [forumList] = useState<ForumItem[]>([
-    {
-      id: "1",
-      topic: "Rekomendasi Rute",
-      category: "Diskusi Umum",
-      username: "Haechan",
-      date: "06 Juni 2026"
+    const toast = useToast();
+  const { data, error, reload } = useLoad(() => api<{ threads: any[] }>("/forum"));
+  const forumList: ForumItem[] = (data?.threads || []).map((t) => ({
+    id: t.id,
+    topic: t.title,
+    category: t.category,
+    username: t.userName,
+    date: formatDate(t.date),
+  }));
+  const [editing, setEditing] = useState<Record<string, any> | null>(null);
+
+  // ambil isi lengkap diskusi dulu (daftar hanya berisi ringkasan)
+  async function bukaEdit(row: ForumItem) {
+    try {
+      const res = await api<{ thread: Record<string, any> }>(`/forum/${row.id}`);
+      setEditing(res.thread);
+    } catch (err: any) {
+      toast(err.message);
     }
-  ]);
+  }
+
+  async function simpan(values: Record<string, any>) {
+    if (!editing) return;
+    await api(`/forum/${editing.id}`, { method: "PATCH", body: values });
+    toast("Diskusi diperbarui.");
+    setEditing(null);
+    reload();
+  }
+
+  async function hapus(row: ForumItem) {
+    if (!confirm(`Hapus diskusi "${row.topic}" beserta semua balasannya?`)) return;
+    try {
+      await api(`/forum/${row.id}`, { method: "DELETE" });
+      toast("Diskusi dihapus.");
+      reload();
+    } catch (err: any) {
+      toast(err.message);
+    }
+  }
 
   return (
     <div style={{ padding: "24px", maxWidth: "100%", margin: "0 auto" }}>
@@ -35,6 +76,15 @@ export default function KelolaForumPage() {
       >
         Kelola Forum
       </h1>
+            {editing && (
+        <FormModal
+          title="Moderasi diskusi"
+          fields={FIELDS}
+          initial={editing}
+          onSubmit={simpan}
+          onClose={() => setEditing(null)}
+        />
+      )}
 
       {/* Dropdown Semua Kategori */}
       <div style={{ marginBottom: "20px" }}>
@@ -94,6 +144,7 @@ export default function KelolaForumPage() {
                       {/* Tombol Ikon Lingkaran (Edit) */}
                       <button 
                         type="button"
+                        onClick={() => bukaEdit(row)}
                         title="Edit"
                         style={{ 
                           width: "32px", 
@@ -117,6 +168,7 @@ export default function KelolaForumPage() {
                       {/* Tombol Ikon Lingkaran (Hapus) */}
                       <button 
                         type="button"
+                        onClick={() => hapus(row)}
                         title="Hapus"
                         style={{ 
                           width: "32px", 

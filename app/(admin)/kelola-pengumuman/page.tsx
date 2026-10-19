@@ -1,6 +1,27 @@
 "use client";
 import { useState } from "react";
-import { truncate } from "@/lib/format";
+import { formatDate, truncate } from "@/lib/format";
+import { api } from "@/lib/api";
+import { useLoad } from "@/lib/useLoad";
+import { useToast } from "@/components/Toast";
+import FormModal from "@/components/FormModal";
+import type { FieldDef } from "@/components/CrudPage";
+
+const FIELDS: FieldDef[] = [
+  { name: "title", label: "Judul", required: true },
+  { name: "type", label: "Kategori", placeholder: "Info Pertunjukan / Pendaftaran dibuka / Pencapaian" },
+  {
+    name: "color",
+    label: "Warna label",
+    type: "select",
+    options: [
+      { value: "brown", label: "Coklat" },
+      { value: "green", label: "Hijau" },
+    ],
+  },
+  { name: "body", label: "Isi pengumuman", type: "textarea", rows: 6, required: true },
+  { name: "image", label: "Gambar (opsional)", type: "image" },
+];
 
 interface Pengumuman {
   id: string;
@@ -11,15 +32,39 @@ interface Pengumuman {
 }
 
 export default function KelolaPengumumanPage() {
-  const [pengumumanList] = useState<Pengumuman[]>([
-    {
-      id: "1",
-      title: "Pentas Minggu Kliwon",
-      category: "Info Pertunjukan",
-      date: "15 Januari 2026",
-      content: ""
+    const toast = useToast();
+  const { data, error, reload } = useLoad(() => api<{ announcements: any[] }>("/announcements"));
+  // backend memakai field type & body; tampilan memakai category & content
+  const pengumumanList: Pengumuman[] = (data?.announcements || []).map((a) => ({
+    ...a,
+    category: a.type,
+    content: a.body,
+    date: formatDate(a.date),
+  }));
+  const [editing, setEditing] = useState<Pengumuman | "new" | null>(null);
+
+  async function simpan(values: Record<string, any>) {
+    if (editing === "new") {
+      await api("/announcements", { method: "POST", body: values });
+      toast("Pengumuman ditambahkan.");
+    } else if (editing) {
+      await api(`/announcements/${editing.id}`, { method: "PATCH", body: values });
+      toast("Pengumuman diperbarui.");
     }
-  ]);
+    setEditing(null);
+    reload();
+  }
+
+  async function hapus(row: Pengumuman) {
+    if (!confirm(`Hapus pengumuman "${row.title}"?`)) return;
+    try {
+      await api(`/announcements/${row.id}`, { method: "DELETE" });
+      toast("Pengumuman dihapus.");
+      reload();
+    } catch (err: any) {
+      toast(err.message);
+    }
+  }
 
   return (
     <div style={{ padding: "24px", maxWidth: "100%", margin: "0 auto" }}>
@@ -35,11 +80,21 @@ export default function KelolaPengumumanPage() {
       >
         Kelola Pengumuman
       </h1>
+            {editing && (
+        <FormModal
+          title={editing === "new" ? "Tulis pengumuman" : "Edit pengumuman"}
+          fields={FIELDS}
+          initial={editing === "new" ? { type: "Pengumuman", color: "brown" } : (editing as any)}
+          onSubmit={simpan}
+          onClose={() => setEditing(null)}
+        />
+      )}
 
       {/* Tombol Tulis Pengumuman */}
       <div style={{ marginBottom: "20px" }}>
         <button 
           type="button"
+          onClick={() => setEditing("new")}
           style={{ 
             backgroundColor: "#5A3E2B", 
             color: "#FFFFFF", 
@@ -91,6 +146,7 @@ export default function KelolaPengumumanPage() {
                       {/* Tombol Ikon Lingkaran (Edit) */}
                       <button 
                         type="button"
+                        onClick={() => setEditing(row)}
                         title="Edit"
                         style={{ 
                           width: "32px", 
@@ -114,6 +170,7 @@ export default function KelolaPengumumanPage() {
                       {/* Tombol Ikon Lingkaran (Hapus) */}
                       <button 
                         type="button"
+                        onClick={() => hapus(row)}
                         title="Hapus"
                         style={{ 
                           width: "32px", 

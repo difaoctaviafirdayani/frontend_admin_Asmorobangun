@@ -1,6 +1,20 @@
 "use client";
 import { useState } from "react";
 
+import { api } from "@/lib/api";
+import { useLoad } from "@/lib/useLoad";
+import { useToast } from "@/components/Toast";
+import FormModal from "@/components/FormModal";
+import type { FieldDef } from "@/components/CrudPage";
+
+const FIELDS: FieldDef[] = [
+  { name: "name", label: "Nama layanan", required: true },
+  { name: "priceInfo", label: "Harga", placeholder: "Contoh: Rp 15.000/kunjungan" },
+  { name: "shortDesc", label: "Deskripsi singkat", type: "textarea", rows: 3 },
+  { name: "longDesc", label: "Deskripsi lengkap", type: "textarea", rows: 6 },
+  { name: "image", label: "Foto layanan", type: "image" },
+];
+
 interface LayananItem {
   id: string;
   name: string;
@@ -9,44 +23,23 @@ interface LayananItem {
 }
 
 export default function KelolaLayananPage() {
-  const [layananList] = useState<LayananItem[]>([
-    {
-      id: "1",
-      name: "Panggilan Tari",
-      price: "Menyesuaikan",
-      description: "Sanggar Asmorobangun menerima panggilan pentas...."
-    },
-    {
-      id: "2",
-      name: "Kunjungan Edukasi...",
-      price: "Rp 10.000/orang",
-      description: "Program ini dirancang untuk kelompok pelajar, mahasiswa...."
-    },
-    {
-      id: "3",
-      name: "Kelas Tari...",
-      price: "Rp 15.000/kunjungan",
-      description: "Kelas ini ditujukan bagi wisatawan atau siapa pun yang...."
-    },
-    {
-      id: "4",
-      name: "Les Tari Reguler...",
-      price: "Rp XX.000/bulan",
-      description: "Program pendaftaran menetap untuk anak-anak, remaja, hingga..."
-    },
-    {
-      id: "5",
-      name: "Les Karawitan (Bulanan)",
-      price: "Rp XX.000/bulan",
-      description: "Karawitan adalah jantung dari setiap pertunjukan Wayang Topeng..."
-    },
-    {
-      id: "6",
-      name: "Sewa Kostum",
-      price: "Perharinya mulai dari Rp 75.000/set",
-      description: "Sanggar menyediakan sewa kostum tari topeng Malangan lengkap...."
-    }
-  ]);
+    const toast = useToast();
+  const { data, error, reload } = useLoad(() => api<{ facilities: any[] }>("/facilities"));
+  // backend memakai priceInfo & shortDesc; tampilan memakai price & description
+  const layananList: LayananItem[] = (data?.facilities || []).map((f) => ({
+    ...f,
+    price: f.priceInfo,
+    description: f.shortDesc,
+  }));
+  const [editing, setEditing] = useState<LayananItem | null>(null);
+
+  async function simpan(values: Record<string, any>) {
+    if (!editing) return;
+    await api(`/facilities/${editing.id}`, { method: "PATCH", body: values });
+    toast("Layanan diperbarui.");
+    setEditing(null);
+    reload();
+  }
 
   return (
     <div style={{ padding: "24px", maxWidth: "100%", margin: "0 auto" }}>
@@ -62,6 +55,15 @@ export default function KelolaLayananPage() {
       >
         Kelola Layanan
       </h1>
+            {editing && (
+        <FormModal
+          title="Edit layanan"
+          fields={FIELDS}
+          initial={editing}
+          onSubmit={simpan}
+          onClose={() => setEditing(null)}
+        />
+      )}
 
       {/* Kotak Tabel dengan Warna FDFCEA Persis Figma */}
       <div 
@@ -117,6 +119,7 @@ export default function KelolaLayananPage() {
                       {/* Tombol Ikon Lingkaran (Edit) */}
                       <button 
                         type="button"
+                        onClick={() => setEditing(row)}
                         title="Edit" 
                         style={{ 
                           width: "32px", 
