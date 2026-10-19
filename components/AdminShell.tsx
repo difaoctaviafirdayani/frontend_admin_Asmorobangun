@@ -9,7 +9,17 @@ interface AdminShellProps {
   children: ReactNode;
 }
 
-const menuGroups = [
+interface MenuItem {
+  name: string;
+  href: string;
+}
+
+interface MenuGroup {
+  title: string;
+  items: MenuItem[];
+}
+
+const menuGroups: MenuGroup[] = [
   {
     title: "MENU",
     items: [{ name: "Beranda", href: "/dashboard" }],
@@ -41,7 +51,8 @@ export default function AdminShell({ children }: AdminShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [admin, setAdmin] = useState<AdminUser | null>(null);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState<boolean>(false);
+  const [open, setOpen] = useState<boolean>(false);
 
   // Penjaga akses: harus punya token dan role admin.
   useEffect(() => {
@@ -55,6 +66,11 @@ export default function AdminShell({ children }: AdminShellProps) {
     setReady(true);
   }, [router]);
 
+  // Tutup drawer otomatis tiap pindah halaman
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
   const handleLogout = () => {
     clearSession();
     router.replace("/login");
@@ -65,128 +81,63 @@ export default function AdminShell({ children }: AdminShellProps) {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        minHeight: "100vh",
-        backgroundColor: "#FAF6ED",
-        fontFamily: "var(--font-poppins), sans-serif",
-      }}
-    >
-      {/* Sidebar */}
-      <aside
-        style={{
-          width: "280px",
-          backgroundColor: "#FDFCEA",
-          borderRight: "1px solid #E6D8C3",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          padding: "24px 20px",
-          boxSizing: "border-box",
-        }}
-      >
-        <div>
-          {/* Menu Navigasi */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "24px",
-              marginTop: "8px",
-            }}
-          >
-            {menuGroups.map((group) => (
-              <div key={group.title}>
-                <div
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: "700",
-                    color: "#8C7A6B",
-                    letterSpacing: "1px",
-                    marginBottom: "8px",
-                  }}
-                >
-                  {group.title}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                  {group.items.map((item) => {
-                    const isActive = pathname.startsWith(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          padding: "10px 14px",
-                          borderRadius: "8px",
-                          fontSize: "14px",
-                          fontWeight: isActive ? "600" : "400",
-                          color: "#3A2A1A",
-                          backgroundColor: isActive ? "#EADBB8" : "transparent",
-                          textDecoration: "none",
-                          fontFamily: "var(--font-margarine), cursive, sans-serif",
-                          transition: "background 0.2s",
-                        }}
-                      >
-                        {item.name}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+    <div className="m-shell">
+      {/* Overlay gelap, klik buat nutup drawer */}
+      <div
+        className={`m-overlay ${open ? "open" : ""}`}
+        onClick={() => setOpen(false)}
+      />
 
-        {/* Bagian Bawah: Profil & Logout */}
-        <div
-          style={{
-            borderTop: "1px solid #E6D8C3",
-            paddingTop: "16px",
-            marginTop: "24px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "12px",
-              color: "#6B5B4F",
-              marginBottom: "12px",
-              wordBreak: "break-all",
-            }}
-          >
-            {admin?.email}
-          </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            style={{
-              width: "100%",
-              padding: "10px",
-              borderRadius: "8px",
-              border: "1px solid #D4BBA5",
-              backgroundColor: "transparent",
-              color: "#3A2A1A",
-              fontSize: "14px",
-              fontWeight: "500",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-            }}
-          >
+      {/* Sidebar jadi drawer */}
+      <aside className={`m-drawer ${open ? "open" : ""}`}>
+        <nav>
+          {menuGroups.map((group) => (
+            <div className="m-group" key={group.title}>
+              <div className="m-group-title">{group.title}</div>
+              {group.items.map((item) => {
+                const isActive = pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={isActive ? "active" : ""}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+
+        <div className="m-drawer-foot">
+          <div className="m-admin-email">{admin?.email}</div>
+          <button type="button" className="m-logout" onClick={handleLogout}>
             Logout
           </button>
         </div>
       </aside>
 
-      {/* Konten Utama */}
-      <main style={{ flex: 1, overflowY: "auto", padding: "32px", backgroundColor: "#FAF6ED" }}>
+      {/* Konten utama */}
+      <div className="m-content">
+        <header className="m-topbar">
+          <button
+            type="button"
+            className="m-burger"
+            aria-label="Buka menu"
+            onClick={() => setOpen(true)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          <div className="m-logo">asmorobangun</div>
+          <div className="m-burger-spacer" />
+        </header>
+
         {children}
-      </main>
+      </div>
     </div>
   );
 }

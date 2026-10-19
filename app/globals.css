@@ -1133,3 +1133,93 @@ a {
     font-size: 24px;
   }
 }
+/* =========================================================
+   ADMIN LOGIN
+   ========================================================= */
+
+.a-login-wrap {
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px 16px;
+
+  background: #f7f3ef;
+}
+
+.a-login-card {
+  width: 100%;
+  max-width: 420px;
+
+  padding: 32px 28px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  background: #ffffff;
+
+  border: 1px solid #eadfd7;
+  border-radius: 16px;
+
+  box-shadow: 0 10px 40px rgba(63, 43, 34, 0.08);
+}
+
+.a-login-logo-bg {
+  width: 100%;
+  height: 90px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 4px;
+}
+
+/* kalau isinya tag <img> atau <svg> */
+.a-login-logo-bg img,
+.a-login-logo-bg svg {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+
+  object-fit: contain;
+}
+
+.a-login-card h2 {
+  margin: 0;
+
+  color: #351f12;
+
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 400;
+  text-align: center;
+}
+
+.a-login-card p {
+  margin: -8px 0 8px;
+
+  color: #8d7569;
+
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .a-login-card {
+    padding: 24px 18px;
+    border-radius: 14px;
+  }
+
+  .a-login-logo-bg {
+    height: 70px;
+  }
+
+  .a-login-card h2 {
+    font-size: 22px;
+  }
+}
