@@ -1,3 +1,7 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
 @font-face {
   font-family: "Upakarti Serong";
   src: url("/fonts/Upakarti-Serong.ttf") format("truetype");

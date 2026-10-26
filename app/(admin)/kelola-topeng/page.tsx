@@ -6,6 +6,7 @@ import { useLoad } from "@/lib/useLoad";
 import { useToast } from "@/components/Toast";
 import FormModal from "@/components/FormModal";
 import type { FieldDef } from "@/components/CrudPage";
+import Link from "next/link";
 
 const FIELDS: FieldDef[] = [
   { name: "name", label: "Nama topeng", required: true },

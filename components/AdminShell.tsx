@@ -3,10 +3,11 @@
 import React, { useEffect, useState, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { getAdmin, getToken, clearSession, AdminUser } from "@/lib/api";
+import { api, getToken, clearSession, AdminUser } from "@/lib/api";
 
 interface AdminShellProps {
   children: ReactNode;
+  admin: AdminUser; // dari server (lib/dal.ts), sudah diverifikasi ke backend
 }
 
 interface MenuItem {
@@ -47,33 +48,46 @@ const menuGroups: MenuGroup[] = [
   },
 ];
 
-export default function AdminShell({ children }: AdminShellProps) {
+export default function AdminShell({ children, admin }: AdminShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [ready, setReady] = useState<boolean>(false);
   const [open, setOpen] = useState<boolean>(false);
 
-  // Penjaga akses: harus punya token dan role admin.
+  // Hapus cookie sesi di server + data login di browser, lalu ke halaman login.
+  async function endSession() {
+    try {
+      await fetch("/api/session", { method: "DELETE" });
+    } catch {
+      /* abaikan */
+    }
+    clearSession();
+    router.replace("/login");
+  }
+
+  // Server sudah memverifikasi admin (DAL). Di sini hanya memastikan token untuk
+  // request API di browser (localStorage) masih ada. Kalau hilang, keluar dengan bersih.
   useEffect(() => {
-    const u = getAdmin();
-    if (!getToken() || !u || u.role !== "admin") {
-      clearSession();
-      router.replace("/login");
+    if (!getToken()) {
+      void endSession();
       return;
     }
-    setAdmin(u);
     setReady(true);
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Tutup drawer otomatis tiap pindah halaman
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  const handleLogout = () => {
-    clearSession();
-    router.replace("/login");
+  const handleLogout = async () => {
+    try {
+      await api("/auth/logout", { method: "POST" }); // cabut token di backend
+    } catch {
+      /* tetap logout walau backend tidak terjangkau */
+    }
+    await endSession();
   };
 
   if (!ready) {
@@ -112,7 +126,7 @@ export default function AdminShell({ children }: AdminShellProps) {
         </nav>
 
         <div className="m-drawer-foot">
-          <div className="m-admin-email">{admin?.email}</div>
+          <div className="m-admin-email">{admin.email}</div>
           <button type="button" className="m-logout" onClick={handleLogout}>
             Logout
           </button>

@@ -1,6 +1,7 @@
 // Klien API tipis untuk backend Express Asmorobangun.
-export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000/api").replace(/\/$/, "");
-const ORIGIN = API_BASE.replace(/\/api$/, "");
+import { API_BASE, ORIGIN } from "@/lib/config";
+
+export { API_BASE }; // supaya impor lama dari "@/lib/api" tetap jalan
 
 const TOKEN_KEY = "asmoro_admin_token";
 const USER_KEY = "asmoro_admin_user";
@@ -76,10 +77,15 @@ export async function api<T = any>(path: string, { method = "GET", body, form }:
   }
 
   if (!res.ok) {
-    // Sesi habis: kembali ke halaman login (kecuali sedang di halaman login).
+    // Sesi habis: hapus data login + cookie sesi di server, lalu kembali ke halaman login
+    // (kecuali sedang di halaman login).
     if (res.status === 401 && token && typeof window !== "undefined" && !location.pathname.startsWith("/login")) {
       clearSession();
-      location.href = "/login";
+      fetch("/api/session", { method: "DELETE" })
+        .catch(() => {})
+        .finally(() => {
+          location.href = "/login";
+        });
     }
     throw new ApiError(data.error || "Terjadi kesalahan. Coba lagi.", res.status);
   }

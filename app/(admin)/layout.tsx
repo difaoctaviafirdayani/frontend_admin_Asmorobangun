@@ -1,10 +1,14 @@
 import { ReactNode } from "react";
 import AdminShell from "@/components/AdminShell";
+import { getCurrentUser } from "@/lib/dal";
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  return <AdminShell>{children}</AdminShell>;
+  // Pengecekan sebenarnya: belum login / bukan admin => redirect ke /login dari server.
+  const admin = await getCurrentUser();
+
+  return <AdminShell admin={admin}>{children}</AdminShell>;
 }
