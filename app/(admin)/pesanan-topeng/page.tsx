@@ -27,6 +27,8 @@ interface Order {
   chatLog: { from: string; text: string; date: string }[];
 }
 
+type Mode = "info" | "edit";
+
 // Figma menampilkan tanggal sebagai dd/mm/yyyy
 function tanggal(value: string) {
   const d = new Date(value);
@@ -53,19 +55,34 @@ function EditIcon() {
   );
 }
 
+// Tombol cepat di mode edit, mengikuti alur pesanan.
+const QUICK: { status: string; label: string; cls: string }[] = [
+  { status: "dikonfirmasi", label: "Konfirmasi", cls: "ok" },
+  { status: "diproses", label: "Proses", cls: "done" },
+  { status: "dikirim", label: "Kirim", cls: "done" },
+  { status: "selesai", label: "Selesai", cls: "ok" },
+  { status: "ditolak", label: "Tolak", cls: "bad" },
+];
+
 export default function PesananTopengPage() {
   const toast = useToast();
   const { data, loading, error, reload } = useLoad(() => api<{ orders: Order[] }>("/topeng/admin/orders"));
   const [fStatus, setFStatus] = useState("");
   const [selected, setSelected] = useState<Order | null>(null);
+  const [mode, setMode] = useState<Mode>("info");
   const [newStatus, setNewStatus] = useState("");
   const [saving, setSaving] = useState(false);
 
   const rows = (data?.orders || []).filter((o) => !fStatus || o.status === fStatus);
 
-  function open(o: Order) {
+  function open(o: Order, m: Mode) {
     setSelected(o);
+    setMode(m);
     setNewStatus(o.status);
+  }
+
+  function close() {
+    setSelected(null);
   }
 
   async function saveStatus() {
@@ -74,7 +91,7 @@ export default function PesananTopengPage() {
     try {
       await api(`/topeng/admin/orders/${selected.id}/status`, { method: "PATCH", body: { status: newStatus } });
       toast("Status pesanan diperbarui.");
-      setSelected(null);
+      close();
       reload();
     } catch (e: any) {
       toast(e.message);
@@ -83,7 +100,10 @@ export default function PesananTopengPage() {
     }
   }
 
-  const wa = selected ? waLink(selected.buyerPhone, `Halo ${selected.userName}, terkait pesanan ${selected.topengName} di Sanggar Asmorobangun.`) : "";
+  const wa = selected
+    ? waLink(selected.buyerPhone, `Halo ${selected.userName}, terkait pesanan ${selected.topengName} di Sanggar Asmorobangun.`)
+    : "";
+  const proofIsPdf = selected?.proofFile ? /\.pdf($|\?)/i.test(selected.proofFile) : false;
 
   return (
     <div className="a-page">
@@ -122,10 +142,10 @@ export default function PesananTopengPage() {
                   <td><StatusBadge status={o.status} labels={ORDER_STATUS} /></td>
                   <td>
                     <div className="a-icons">
-                      <button className="a-icon-btn" aria-label="Lihat detail" title="Lihat detail" onClick={() => open(o)}>
+                      <button className="a-icon-btn" aria-label="Lihat detail" title="Lihat detail" onClick={() => open(o, "info")}>
                         <InfoIcon />
                       </button>
-                      <button className="a-icon-btn" aria-label="Ubah status" title="Ubah status" onClick={() => open(o)}>
+                      <button className="a-icon-btn" aria-label="Ubah status" title="Ubah status" onClick={() => open(o, "edit")}>
                         <EditIcon />
                       </button>
                     </div>
@@ -137,30 +157,72 @@ export default function PesananTopengPage() {
         </div>
       </div>
 
-      {selected && (
-        <Modal title="Detail pesanan topeng" onClose={() => setSelected(null)} wide>
-          {selected.topengImage && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img className="a-detail-img" src={assetUrl(selected.topengImage)} alt="" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
-          )}
-          <DetailList
-            rows={[
-              ["Pembeli", selected.userName],
-              ["No. HP", selected.buyerPhone],
-              ["Topeng", `${selected.topengName} x${selected.qty}`],
-              ["Harga satuan", formatRupiah(selected.unitPrice)],
-              ["Total", formatRupiah(selected.total)],
-              ["Nama custom", selected.customName],
-              ["Desain custom", selected.customDesign],
-              ["Pesan", selected.message],
-              ["Metode bayar", selected.paymentMethod ? PAYMENT_LABEL[selected.paymentMethod] : null],
-              ["Bukti bayar", selected.proofFile ? <a href={fileUrl(selected.proofFile)} target="_blank" rel="noreferrer">Lihat bukti</a> : "Belum diunggah"],
-              ["Dibuat", formatDateTime(selected.createdAt)],
-            ]}
-          />
+      {/* ========== MODE INFO: hanya baca, tertata per bagian ========== */}
+      {selected && mode === "info" && (
+        <Modal title="Detail pesanan topeng" onClose={close}>
+          <div className="a-info-head">
+            {selected.topengImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="a-thumb" src={assetUrl(selected.topengImage)} alt="" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
+            )}
+            <div style={{ flex: 1 }}>
+              <div className="a-info-name">{selected.topengName} x{selected.qty}</div>
+              <div className="a-info-sub">Pemesan: {selected.userName}</div>
+              <div className="a-info-sub">Total {formatRupiah(selected.total)}</div>
+            </div>
+            <StatusBadge status={selected.status} labels={ORDER_STATUS} />
+          </div>
+
+          <div className="a-info-section">
+            <div className="a-info-title">Pemesan</div>
+            <DetailList
+              rows={[
+                ["Nama", selected.userName],
+                ["No. HP", selected.buyerPhone],
+                ["Dibuat", formatDateTime(selected.createdAt)],
+              ]}
+            />
+          </div>
+
+          <div className="a-info-section">
+            <div className="a-info-title">Pesanan</div>
+            <DetailList
+              rows={[
+                ["Topeng", selected.topengName],
+                ["Jumlah", selected.qty],
+                ["Harga satuan", formatRupiah(selected.unitPrice)],
+                ["Total", formatRupiah(selected.total)],
+                ["Nama custom", selected.customName],
+                ["Desain custom", selected.customDesign],
+                ["Pesan", selected.message],
+              ]}
+            />
+          </div>
+
+          <div className="a-info-section">
+            <div className="a-info-title">Pembayaran</div>
+            <DetailList
+              rows={[["Metode bayar", selected.paymentMethod ? PAYMENT_LABEL[selected.paymentMethod] ?? selected.paymentMethod : null]]}
+            />
+            {selected.proofFile ? (
+              proofIsPdf ? (
+                <a className="a-btn a-btn-ghost a-btn-sm" href={fileUrl(selected.proofFile)} target="_blank" rel="noreferrer">
+                  Buka bukti bayar (PDF)
+                </a>
+              ) : (
+                <a href={fileUrl(selected.proofFile)} target="_blank" rel="noreferrer" title="Klik untuk memperbesar">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="a-proof" src={fileUrl(selected.proofFile)} alt="Bukti bayar" />
+                </a>
+              )
+            ) : (
+              <div className="a-info-empty">Bukti bayar belum diunggah.</div>
+            )}
+          </div>
+
           {selected.chatLog?.length > 0 && (
-            <div style={{ marginTop: 14 }}>
-              <div className="a-sublabel">Riwayat pesanan</div>
+            <div className="a-info-section">
+              <div className="a-info-title">Riwayat pesanan</div>
               <div className="a-chat">
                 {selected.chatLog.map((m, i) => (
                   <div className="a-chat-msg" key={i}>
@@ -171,15 +233,63 @@ export default function PesananTopengPage() {
               </div>
             </div>
           )}
-          <div className="a-field" style={{ marginTop: 16 }}>
-            <label>Ubah status</label>
-            <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
+
+          <div className="a-modal-foot">
+            {wa && <a className="a-btn a-btn-gold" href={wa} target="_blank" rel="noreferrer">WhatsApp pembeli</a>}
+            <button className="a-btn a-btn-ghost" onClick={close}>Tutup</button>
+            <button className="a-btn a-btn-primary" onClick={() => setMode("edit")}>Ubah status</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ========== MODE EDIT: fokus mengambil keputusan ========== */}
+      {selected && mode === "edit" && (
+        <Modal title="Ubah status pesanan" onClose={close}>
+          <div className="a-info-head">
+            <div style={{ flex: 1 }}>
+              <div className="a-info-name">{selected.userName}</div>
+              <div className="a-info-sub">{selected.topengName} x{selected.qty} · {formatRupiah(selected.total)}</div>
+              {(selected.customName || selected.customDesign) && (
+                <div className="a-info-sub">Custom: {[selected.customName, selected.customDesign].filter(Boolean).join(" / ")}</div>
+              )}
+            </div>
+            <StatusBadge status={selected.status} labels={ORDER_STATUS} />
+          </div>
+
+          <div className="a-info-section">
+            <div className="a-info-title">Keputusan cepat</div>
+            <div className="a-quick a-quick-5">
+              {QUICK.map((q) => (
+                <button
+                  key={q.status}
+                  type="button"
+                  className={`a-quick-btn ${q.cls}${newStatus === q.status ? " active" : ""}`}
+                  onClick={() => setNewStatus(q.status)}
+                >
+                  {q.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="a-field">
+            <label htmlFor="status-pesanan">Atau pilih status lain</label>
+            <select id="status-pesanan" value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
               {Object.entries(ORDER_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
+
+          {newStatus !== selected.status && (
+            <div className="a-change-note">
+              Status akan berubah dari <strong>{ORDER_STATUS[selected.status] ?? selected.status}</strong> menjadi{" "}
+              <strong>{ORDER_STATUS[newStatus] ?? newStatus}</strong>.
+            </div>
+          )}
+
           <div className="a-modal-foot">
             {wa && <a className="a-btn a-btn-gold" href={wa} target="_blank" rel="noreferrer">WhatsApp pembeli</a>}
-            <button className="a-btn a-btn-ghost" onClick={() => setSelected(null)}>Tutup</button>
+            <button className="a-btn a-btn-ghost" onClick={() => setMode("info")}>Lihat detail</button>
+            <button className="a-btn a-btn-ghost" onClick={close}>Batal</button>
             <button className="a-btn a-btn-primary" disabled={saving || newStatus === selected.status} onClick={saveStatus}>
               {saving ? "Menyimpan..." : "Simpan status"}
             </button>

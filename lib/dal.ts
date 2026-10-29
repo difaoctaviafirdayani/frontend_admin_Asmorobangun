@@ -17,7 +17,10 @@ export type CurrentUser = {
 async function fetchMe(token: string): Promise<CurrentUser | null> {
   try {
     const res = await fetch(`${API_BASE}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "true",
+      },
       cache: "no-store",
     });
     if (!res.ok) return null; // 401 = token palsu / kedaluwarsa / sudah logout
@@ -52,24 +55,38 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser> => {
   }
   return user;
 });
-/* ---------- MUTASI: tambah topeng lewat API Express ---------- */
+
+/* ---------- MUTASI TOPENG lewat API Express ---------- */
 // Identitas admin diambil dari token di cookie sesi (server), BUKAN dari form klien.
-export async function createTopeng(data: TopengInput) {
+async function callBackend(method: "POST" | "PATCH", path: string, data: unknown) {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) throw new Error("Sesi berakhir. Silakan login lagi.");
 
-  const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000/api";
-  const res = await fetch(`${base}/topeng`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(data),
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: JSON.stringify(data),
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error("Tidak bisa terhubung ke backend. Pastikan backend dan MySQL sudah jalan.");
+  }
 
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || "Backend menolak data.");
-  return json.topeng as { id: string; name: string; price: number };
+  return json;
+}
+
+export async function createTopeng(data: TopengInput) {
+  return callBackend("POST", "/topeng", data);
+}
+
+export async function updateTopeng(id: string, data: TopengInput) {
+  return callBackend("PATCH", `/topeng/${encodeURIComponent(id)}`, data);
 }

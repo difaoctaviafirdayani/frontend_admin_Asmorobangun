@@ -1,7 +1,6 @@
 // Klien API tipis untuk backend Express Asmorobangun.
-import { API_BASE, ORIGIN } from "@/lib/config";
-
-export { API_BASE }; // supaya impor lama dari "@/lib/api" tetap jalan
+export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:4000/api").replace(/\/$/, "");
+const ORIGIN = API_BASE.replace(/\/api$/, "");
 
 const TOKEN_KEY = "asmoro_admin_token";
 const USER_KEY = "asmoro_admin_user";
@@ -19,6 +18,13 @@ export class ApiError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+// Pengait notifikasi: dipasang oleh NotificationBell supaya setiap kegagalan API tampil di lonceng.
+export type ApiErrorInfo = { message: string; status: number; path: string };
+let errorHook: ((e: ApiErrorInfo) => void) | null = null;
+export function setApiErrorHook(fn: ((e: ApiErrorInfo) => void) | null) {
+  errorHook = fn;
 }
 
 export function getToken(): string | null {
@@ -53,7 +59,8 @@ interface Options {
 }
 
 export async function api<T = any>(path: string, { method = "GET", body, form }: Options = {}): Promise<T> {
-  const headers: Record<string, string> = {};
+  // Supaya halaman peringatan ngrok (versi gratis) tidak ikut terkirim sebagai jawaban.
+  const headers: Record<string, string> = { "ngrok-skip-browser-warning": "true" };
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
   if (!form && body !== undefined) headers["Content-Type"] = "application/json";
@@ -66,7 +73,9 @@ export async function api<T = any>(path: string, { method = "GET", body, form }:
       body: form ? form : body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError("Tidak bisa terhubung ke server. Pastikan backend sudah jalan.", 0);
+    const err = new ApiError("Tidak bisa terhubung ke server. Pastikan backend sudah jalan.", 0);
+    errorHook?.({ message: err.message, status: 0, path: `${method} ${path}` });
+    throw err;
   }
 
   let data: any = {};
@@ -77,17 +86,16 @@ export async function api<T = any>(path: string, { method = "GET", body, form }:
   }
 
   if (!res.ok) {
-    // Sesi habis: hapus data login + cookie sesi di server, lalu kembali ke halaman login
-    // (kecuali sedang di halaman login).
+    // Sesi habis: hapus cookie sesi server + data lokal, lalu kembali ke halaman login.
     if (res.status === 401 && token && typeof window !== "undefined" && !location.pathname.startsWith("/login")) {
       clearSession();
-      fetch("/api/session", { method: "DELETE" })
-        .catch(() => {})
-        .finally(() => {
-          location.href = "/login";
-        });
+      fetch("/api/session", { method: "DELETE" }).finally(() => {
+        location.href = "/login";
+      });
     }
-    throw new ApiError(data.error || "Terjadi kesalahan. Coba lagi.", res.status);
+    const err = new ApiError(data.error || "Terjadi kesalahan. Coba lagi.", res.status);
+    if (res.status !== 401) errorHook?.({ message: err.message, status: res.status, path: `${method} ${path}` });
+    throw err;
   }
   return data as T;
 }
