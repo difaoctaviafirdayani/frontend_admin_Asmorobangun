@@ -4,8 +4,16 @@ import { revalidatePath } from "next/cache";
 import { requireAdminInAction } from "@/lib/admin-guard";
 import { serverApi } from "@/lib/server-api";
 
-// Sesuaikan dengan daftar status yang dipakai backend-mu.
-const ALLOWED_STATUS = ["menunggu", "dibayar", "diproses", "selesai", "dibatalkan"];
+// Daftar status yang diterima backend-mu.
+const ALLOWED_STATUS = [
+  "menunggu_konfirmasi_admin",
+  "menunggu_verifikasi",
+  "dikonfirmasi",
+  "diproses",
+  "dikirim",
+  "selesai",
+  "ditolak",
+];
 
 export async function updateOrderStatusAction(orderId: string, status: string) {
   // 1) Cek role DI DALAM action (bukan hanya di layout/proxy)
@@ -20,7 +28,7 @@ export async function updateOrderStatusAction(orderId: string, status: string) {
   }
 
   // 3) Backend tetap memeriksa lagi lewat requireAdmin
-  const res = await serverApi(`/topeng/orders/${encodeURIComponent(orderId)}/status`, {
+  const res = await serverApi(`/topeng/admin/orders/${encodeURIComponent(orderId)}/status`, {
     method: "PATCH",
     body: { status },
   });
