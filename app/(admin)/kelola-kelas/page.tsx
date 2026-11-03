@@ -2,38 +2,21 @@
 import { FormEvent, useState } from "react";
 import { api, assetUrl } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
-import { formatDate, truncate } from "@/lib/format";
+import { formatDate, truncate, getErrorMessage } from "@/lib/format";
+import { buildKelasPayload, initialKelasForm, validateKelas } from "@/lib/kelas";
 import Modal from "@/components/Modal";
 import DetailList from "@/components/DetailList";
 import ImageField from "@/components/ImageField";
 import Stars from "@/components/Stars";
 import { useToast } from "@/components/Toast";
-
-interface Methods {
-  cash?: { enabled?: boolean; note?: string };
-  transfer?: { enabled?: boolean; note?: string };
-  qris?: { enabled?: boolean; image?: string };
-}
-interface Facility {
-  id: string;
-  name: string;
-  category: string;
-  shortDesc: string;
-  longDesc: string;
-  priceInfo: string;
-  image: string;
-  bookingType: string;
-  avgRating: number | null;
-  reviewCount: number;
-  paymentMethods?: Methods;
-}
-interface Review { id: string; userName: string; rating: number; comment: string; date: string }
+import type { FieldErrors } from "@/types/crud";
+import type { Kelas, KelasFormState, KelasReview } from "@/types/kelas";
 
 export default function KelolaKelasPage() {
-  const { data, loading, error, reload } = useLoad(() => api<{ facilities: Facility[] }>("/facilities"));
-  const [detail, setDetail] = useState<Facility | null>(null);
-  const [edit, setEdit] = useState<Facility | null>(null);
-  const rows = data?.facilities || [];
+  const { data, loading, error, reload } = useLoad(() => api<{ facilities: Kelas[] }>("/facilities"));
+  const [detail, setDetail] = useState<Kelas | null>(null);
+  const [edit, setEdit] = useState<Kelas | null>(null);
+  const rows = data?.facilities ?? [];
 
   return (
     <>
@@ -69,9 +52,9 @@ export default function KelolaKelasPage() {
   );
 }
 
-function DetailModal({ facility: f, onClose, onChanged }: { facility: Facility; onClose: () => void; onChanged: () => void }) {
+function DetailModal({ facility: f, onClose, onChanged }: { facility: Kelas; onClose: () => void; onChanged: () => void }) {
   const toast = useToast();
-  const { data, loading, reload } = useLoad(() => api<{ reviews: Review[] }>(`/facilities/${f.id}`), [f.id]);
+  const { data, loading, reload } = useLoad(() => api<{ reviews: KelasReview[] }>(`/facilities/${f.id}`), [f.id]);
 
   async function del(id: string) {
     if (!confirm("Hapus ulasan ini?")) return;
@@ -80,8 +63,8 @@ function DetailModal({ facility: f, onClose, onChanged }: { facility: Facility; 
       toast("Ulasan dihapus.");
       reload();
       onChanged();
-    } catch (e: any) {
-      toast(e.message);
+    } catch (e) {
+      toast(getErrorMessage(e));
     }
   }
 
@@ -121,39 +104,36 @@ function DetailModal({ facility: f, onClose, onChanged }: { facility: Facility; 
   );
 }
 
-function EditModal({ facility: f, onClose, onSaved }: { facility: Facility; onClose: () => void; onSaved: () => void }) {
+function EditModal({ facility: f, onClose, onSaved }: { facility: Kelas; onClose: () => void; onSaved: () => void }) {
   const toast = useToast();
   const isEvent = f.bookingType === "event"; // layanan event memakai penawaran admin, tanpa metode bayar
-  const pm = f.paymentMethods || {};
-  const [name, setName] = useState(f.name);
-  const [priceInfo, setPriceInfo] = useState(f.priceInfo);
-  const [longDesc, setLongDesc] = useState(f.longDesc);
-  const [image, setImage] = useState(f.image || "");
-  const [cashOn, setCashOn] = useState(pm.cash?.enabled !== false);
-  const [cashNote, setCashNote] = useState(pm.cash?.note || "");
-  const [trfOn, setTrfOn] = useState(pm.transfer?.enabled !== false);
-  const [trfNote, setTrfNote] = useState(pm.transfer?.note || "");
-  const [qrisOn, setQrisOn] = useState(pm.qris?.enabled !== false);
-  const [qrisImg, setQrisImg] = useState(pm.qris?.image || "");
+  const [form, setForm] = useState<KelasFormState>(() => initialKelasForm(f));
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
+
+  function setField<K extends keyof KelasFormState>(key: K, value: KelasFormState[K]) {
+    setForm((old) => ({ ...old, [key]: value }));
+    setErrors((old) => {
+      if (!old[key]) return old;
+      const { [key]: _removed, ...rest } = old;
+      return rest;
+    });
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const payload: Record<string, any> = { name, priceInfo, longDesc, image };
-    if (!isEvent) {
-      payload.paymentMethods = {
-        cash: { enabled: cashOn, note: cashNote },
-        transfer: { enabled: trfOn, note: trfNote },
-        qris: { enabled: qrisOn, image: qrisImg },
-      };
+    const found = validateKelas(form);
+    if (found) {
+      setErrors(found);
+      return;
     }
     setSaving(true);
     try {
-      await api(`/facilities/${f.id}`, { method: "PATCH", body: payload });
+      await api(`/facilities/${f.id}`, { method: "PATCH", body: buildKelasPayload(form, isEvent) });
       toast("Fasilitas diperbarui.");
       onSaved();
-    } catch (err: any) {
-      toast(err.message);
+    } catch (err) {
+      toast(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -161,10 +141,20 @@ function EditModal({ facility: f, onClose, onSaved }: { facility: Facility; onCl
 
   return (
     <Modal title={`Edit: ${f.name}`} onClose={onClose}>
-      <form onSubmit={submit}>
-        <div className="a-field"><label>Nama</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div className="a-field"><label>Harga</label><input value={priceInfo} onChange={(e) => setPriceInfo(e.target.value)} /></div>
-        <div className="a-field"><label>Deskripsi</label><textarea rows={4} value={longDesc} onChange={(e) => setLongDesc(e.target.value)} /></div>
+      <form onSubmit={submit} noValidate>
+        <div className={`a-field${errors.name ? " has-error" : ""}`}>
+          <label>Nama *</label>
+          <input value={form.name} onChange={(e) => setField("name", e.target.value)} />
+          {errors.name && <div className="a-field-error">{errors.name}</div>}
+        </div>
+        <div className="a-field">
+          <label>Harga</label>
+          <input value={form.priceInfo} onChange={(e) => setField("priceInfo", e.target.value)} />
+        </div>
+        <div className="a-field">
+          <label>Deskripsi</label>
+          <textarea rows={4} value={form.longDesc} onChange={(e) => setField("longDesc", e.target.value)} />
+        </div>
 
         {isEvent ? (
           <div className="a-field-hint" style={{ marginBottom: 12 }}>
@@ -174,25 +164,25 @@ function EditModal({ facility: f, onClose, onSaved }: { facility: Facility; onCl
           <div className="a-field">
             <label>Metode pembayaran</label>
             <div className="a-method-box">
-              <label className="a-check-label"><input type="checkbox" checked={cashOn} onChange={(e) => setCashOn(e.target.checked)} /> Tunai</label>
-              <input placeholder="Catatan, mis. Bayar di sanggar" value={cashNote} onChange={(e) => setCashNote(e.target.value)} />
+              <label className="a-check-label"><input type="checkbox" checked={form.cashOn} onChange={(e) => setField("cashOn", e.target.checked)} /> Tunai</label>
+              <input placeholder="Catatan, mis. Bayar di sanggar" value={form.cashNote} onChange={(e) => setField("cashNote", e.target.value)} />
             </div>
             <div className="a-method-box">
-              <label className="a-check-label"><input type="checkbox" checked={trfOn} onChange={(e) => setTrfOn(e.target.checked)} /> Transfer Bank</label>
-              <input placeholder="Catatan, mis. 1234567890 (BCA a.n. Sanggar)" value={trfNote} onChange={(e) => setTrfNote(e.target.value)} />
+              <label className="a-check-label"><input type="checkbox" checked={form.trfOn} onChange={(e) => setField("trfOn", e.target.checked)} /> Transfer Bank</label>
+              <input placeholder="Catatan, mis. 1234567890 (BCA a.n. Sanggar)" value={form.trfNote} onChange={(e) => setField("trfNote", e.target.value)} />
               <div className="a-field-hint">Kosongkan untuk memakai rekening umum dari Pengaturan Pembayaran.</div>
             </div>
             <div className="a-method-box">
-              <label className="a-check-label"><input type="checkbox" checked={qrisOn} onChange={(e) => setQrisOn(e.target.checked)} /> QRIS</label>
-              <ImageField label="Gambar QRIS merchant" value={qrisImg} onChange={setQrisImg} />
+              <label className="a-check-label"><input type="checkbox" checked={form.qrisOn} onChange={(e) => setField("qrisOn", e.target.checked)} /> QRIS</label>
+              <ImageField label="Gambar QRIS merchant" value={form.qrisImg} onChange={(v) => setField("qrisImg", v)} />
             </div>
           </div>
         )}
 
-        <ImageField label="Gambar layanan" value={image} onChange={setImage} />
+        <ImageField label="Gambar layanan" value={form.image} onChange={(v) => setField("image", v)} />
         <div className="a-modal-foot">
           <button type="button" className="a-btn a-btn-ghost" onClick={onClose}>Batal</button>
-          <button className="a-btn a-btn-primary" disabled={saving}>{saving ? "Menyimpan..." : "Simpan"}</button>
+          <button type="submit" className="a-btn a-btn-primary" disabled={saving}>{saving ? "Menyimpan..." : "Simpan"}</button>
         </div>
       </form>
     </Modal>

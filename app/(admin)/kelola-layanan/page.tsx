@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
-
 import { api } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
+import { toLayananView } from "@/lib/layanan";
 import { useToast } from "@/components/Toast";
 import FormModal from "@/components/FormModal";
-import type { FieldDef } from "@/components/CrudPage";
+import type { FieldDef, FormValues } from "@/types/crud";
+import type { Layanan, LayananApi } from "@/types/layanan";
 
 const FIELDS: FieldDef[] = [
   { name: "name", label: "Nama layanan", required: true },
@@ -15,25 +16,15 @@ const FIELDS: FieldDef[] = [
   { name: "image", label: "Foto layanan", type: "image" },
 ];
 
-interface LayananItem {
-  id: string;
-  name: string;
-  price: string;
-  description: string;
-}
-
 export default function KelolaLayananPage() {
-    const toast = useToast();
-  const { data, error, reload } = useLoad(() => api<{ facilities: any[] }>("/facilities"));
-  // backend memakai priceInfo & shortDesc; tampilan memakai price & description
-  const layananList: LayananItem[] = (data?.facilities || []).map((f) => ({
-    ...f,
-    price: f.priceInfo,
-    description: f.shortDesc,
-  }));
-  const [editing, setEditing] = useState<LayananItem | null>(null);
+  const toast = useToast();
+  const { data, error, reload } = useLoad(() =>
+    api<{ facilities: LayananApi[] }>("/facilities")
+  );
+  const layananList: Layanan[] = (data?.facilities ?? []).map(toLayananView);
+  const [editing, setEditing] = useState<Layanan | null>(null);
 
-  async function simpan(values: Record<string, any>) {
+  async function simpan(values: FormValues) {
     if (!editing) return;
     await api(`/facilities/${editing.id}`, { method: "PATCH", body: values });
     toast("Layanan diperbarui.");
@@ -43,35 +34,36 @@ export default function KelolaLayananPage() {
 
   return (
     <div style={{ padding: "24px", maxWidth: "100%", margin: "0 auto" }}>
-      {/* Judul Halaman dengan Font Margarine */}
-      <h1 
-        style={{ 
-          fontSize: "32px", 
-          fontWeight: "normal", 
-          color: "#3A2A1A", 
-          marginBottom: "24px", 
-          fontFamily: "'Margarine', cursive, sans-serif" 
+      <h1
+        style={{
+          fontSize: "32px",
+          fontWeight: "normal",
+          color: "#3A2A1A",
+          marginBottom: "24px",
+          fontFamily: "'Margarine', cursive, sans-serif",
         }}
       >
         Kelola Layanan
       </h1>
-            {editing && (
+
+      {error && <div style={{ color: "#A84C4C", marginBottom: "12px", fontSize: "14px" }}>{error}</div>}
+
+      {editing && (
         <FormModal
           title="Edit layanan"
           fields={FIELDS}
-          initial={editing}
+          initial={editing as unknown as FormValues}
           onSubmit={simpan}
           onClose={() => setEditing(null)}
         />
       )}
 
-      {/* Kotak Tabel dengan Warna FDFCEA Persis Figma */}
-      <div 
-        style={{ 
-          backgroundColor: "#FDFCEA", 
-          border: "1.5px solid #D4BBA5", 
-          borderRadius: "12px", 
-          overflow: "hidden" 
+      <div
+        style={{
+          backgroundColor: "#FDFCEA",
+          border: "1.5px solid #D4BBA5",
+          borderRadius: "12px",
+          overflow: "hidden",
         }}
       >
         <div style={{ overflowX: "auto" }}>
@@ -92,21 +84,20 @@ export default function KelolaLayananPage() {
                   <td style={{ padding: "16px 20px", color: "#6A5A4A", maxWidth: "350px", verticalAlign: "middle", lineHeight: "1.5" }}>{row.description}</td>
                   <td style={{ padding: "16px 20px", textAlign: "center", verticalAlign: "middle" }}>
                     <div style={{ display: "flex", gap: "10px", justifyContent: "center", alignItems: "center" }}>
-                      {/* Tombol Ikon Lingkaran (Detail) */}
-                      <button 
+                      <button
                         type="button"
-                        title="Detail" 
-                        style={{ 
-                          width: "32px", 
-                          height: "32px", 
-                          borderRadius: "50%", 
-                          border: "1px solid #C4A482", 
-                          background: "transparent", 
-                          cursor: "pointer", 
-                          display: "inline-flex", 
-                          alignItems: "center", 
-                          justifyContent: "center", 
-                          color: "#3A2A1A" 
+                        title="Detail"
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "50%",
+                          border: "1px solid #C4A482",
+                          background: "transparent",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#3A2A1A",
                         }}
                       >
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -116,22 +107,21 @@ export default function KelolaLayananPage() {
                         </svg>
                       </button>
 
-                      {/* Tombol Ikon Lingkaran (Edit) */}
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setEditing(row)}
-                        title="Edit" 
-                        style={{ 
-                          width: "32px", 
-                          height: "32px", 
-                          borderRadius: "50%", 
-                          border: "1px solid #C4A482", 
-                          background: "transparent", 
-                          cursor: "pointer", 
-                          display: "inline-flex", 
-                          alignItems: "center", 
-                          justifyContent: "center", 
-                          color: "#3A2A1A" 
+                        title="Edit"
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "50%",
+                          border: "1px solid #C4A482",
+                          background: "transparent",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#3A2A1A",
                         }}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -22,7 +22,7 @@ interface MenuGroup {
 
 const menuGroups: MenuGroup[] = [
   {
-    title: "MENU",
+    title: "DASHBOARD",
     items: [{ name: "Beranda", href: "/dashboard" }],
   },
   {
@@ -104,6 +104,7 @@ export default function AdminShell({ children, admin }: AdminShellProps) {
 
       {/* Sidebar jadi drawer */}
       <aside className={`m-drawer ${open ? "open" : ""}`}>
+        <div className="m-drawer-label">MENU</div>
         <nav>
           {menuGroups.map((group) => (
             <div className="m-group" key={group.title}>

@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { api, assetUrl } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
+import { getErrorMessage } from "@/lib/format";
+import { toGaleriView } from "@/lib/galeri";
 import { useToast } from "@/components/Toast";
 import FormModal from "@/components/FormModal";
-import type { FieldDef } from "@/components/CrudPage";
+import type { FieldDef, FormValues } from "@/types/crud";
+import type { Galeri, GaleriApi } from "@/types/galeri";
 
 const FIELDS: FieldDef[] = [
   { name: "title", label: "Judul", required: true },
@@ -14,40 +17,24 @@ const FIELDS: FieldDef[] = [
   { name: "image", label: "Foto", type: "image", required: true },
 ];
 
-interface GaleriItem {
-  id: string;
-  title: string;
-  description: string;
-  image: string;
-}
-
 export default function KelolaGaleriPage() {
-    const toast = useToast();
-  const { data, error, reload } = useLoad(() => api<{ gallery: any[] }>("/gallery"));
-  // backend memakai field caption; tampilan memakai description
-  const galeriList: GaleriItem[] = (data?.gallery || []).map((g) => ({ ...g, description: g.caption }));
-  const [editing, setEditing] = useState<GaleriItem | "new" | null>(null);
+  const toast = useToast();
+  const { data, error, reload } = useLoad(() => api<{ gallery: GaleriApi[] }>("/gallery"));
+  const galeriList: Galeri[] = (data?.gallery ?? []).map(toGaleriView);
+  const [editing, setEditing] = useState<Galeri | "new" | null>(null);
 
-  const handleTambahFoto = () => {
-    setEditing("new");
-  };
-
-  const handleEdit = (id: string) => {
-    setEditing(galeriList.find((item) => item.id === id) || null);
-  };
-
-  const handleDelete = async (id: string) => {
+  async function handleDelete(id: string) {
     if (!confirm("Hapus foto ini?")) return;
     try {
       await api(`/gallery/${id}`, { method: "DELETE" });
       toast("Foto dihapus.");
       reload();
-    } catch (err: any) {
-      toast(err.message);
+    } catch (err) {
+      toast(getErrorMessage(err));
     }
-  };
+  }
 
-  async function simpan(values: Record<string, any>) {
+  async function simpan(values: FormValues) {
     if (editing === "new") {
       await api("/gallery", { method: "POST", body: values });
       toast("Foto ditambahkan.");
@@ -61,22 +48,22 @@ export default function KelolaGaleriPage() {
 
   return (
     <div style={{ fontFamily: "var(--font-poppins), sans-serif", color: "#3A2A1A" }}>
-      {/* Judul Halaman (Menggunakan Margarine sesuai standar halaman lain) */}
-      <h1 
-        style={{ 
-          fontSize: "28px", 
-          fontWeight: "bold", 
+      <h1
+        style={{
+          fontSize: "28px",
+          fontWeight: "bold",
           marginBottom: "20px",
-          fontFamily: "var(--font-margarine), cursive, sans-serif"
+          fontFamily: "var(--font-margarine), cursive, sans-serif",
         }}
       >
         Kelola Galeri
       </h1>
-            {error && <div style={{ color: "#A84C4C", marginBottom: "12px", fontSize: "14px" }}>{error}</div>}
-      {/* Tombol Tambah Foto */}
+
+      {error && <div style={{ color: "#A84C4C", marginBottom: "12px", fontSize: "14px" }}>{error}</div>}
+
       <button
         type="button"
-        onClick={handleTambahFoto}
+        onClick={() => setEditing("new")}
         style={{
           backgroundColor: "#5C3A21",
           color: "#FFFFFF",
@@ -96,12 +83,11 @@ export default function KelolaGaleriPage() {
         <span style={{ fontSize: "16px", fontWeight: "bold" }}>+</span> Tambah Foto
       </button>
 
-      {/* Grid Kartu Galeri */}
-      <div 
-        style={{ 
-          display: "grid", 
-          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", 
-          gap: "24px" 
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+          gap: "24px",
         }}
       >
         {galeriList.map((item) => (
@@ -119,16 +105,15 @@ export default function KelolaGaleriPage() {
             }}
           >
             <div>
-              {/* Gambar / Foto */}
-              <div 
-                style={{ 
-                  position: "relative", 
-                  width: "100%", 
-                  height: "200px", 
-                  borderRadius: "12px", 
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: "200px",
+                  borderRadius: "12px",
                   overflow: "hidden",
                   marginBottom: "16px",
-                  backgroundColor: "#EFE8DC" 
+                  backgroundColor: "#EFE8DC",
                 }}
               >
                 <Image
@@ -141,38 +126,35 @@ export default function KelolaGaleriPage() {
                 />
               </div>
 
-              {/* Judul Kartu (Menggunakan Font Poppins, Ketebalan Bold) */}
-              <h3 
-                style={{ 
-                  fontSize: "18px", 
-                  fontWeight: "bold", 
+              <h3
+                style={{
+                  fontSize: "18px",
+                  fontWeight: "bold",
                   marginBottom: "8px",
                   fontFamily: "var(--font-poppins), sans-serif",
-                  color: "#3A2A1A"
+                  color: "#3A2A1A",
                 }}
               >
                 {item.title}
               </h3>
 
-              {/* Keterangan (Menggunakan Font Poppins)[cite: 10] */}
-              <p 
-                style={{ 
-                  fontSize: "13px", 
-                  color: "#6B5B4F", 
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "#6B5B4F",
                   marginBottom: "20px",
                   lineHeight: "1.4",
-                  fontFamily: "var(--font-poppins), sans-serif"
+                  fontFamily: "var(--font-poppins), sans-serif",
                 }}
               >
                 {item.description}
               </p>
             </div>
 
-            {/* Tombol Aksi (Edit & Hapus dengan Font Poppins)[cite: 10] */}
             <div style={{ display: "flex", gap: "12px" }}>
               <button
                 type="button"
-                onClick={() => handleEdit(item.id)}
+                onClick={() => setEditing(item)}
                 style={{
                   flex: 1,
                   padding: "8px",
@@ -212,11 +194,12 @@ export default function KelolaGaleriPage() {
           </div>
         ))}
       </div>
-            {editing && (
+
+      {editing && (
         <FormModal
           title={editing === "new" ? "Tambah foto" : "Edit foto"}
           fields={FIELDS}
-          initial={editing === "new" ? {} : (editing as any)}
+          initial={editing === "new" ? {} : (editing as unknown as FormValues)}
           onSubmit={simpan}
           onClose={() => setEditing(null)}
         />

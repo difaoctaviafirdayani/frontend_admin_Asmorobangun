@@ -3,40 +3,54 @@ import { FormEvent, useState } from "react";
 import Modal from "./Modal";
 import ImageField from "./ImageField";
 import { useToast } from "./Toast";
-import type { FieldDef } from "./CrudPage";
+import { getErrorMessage } from "@/lib/format";
+import { validateForm } from "@/lib/validation";
+import type { FieldDef, FieldErrors, FormValues } from "@/types/crud";
 
 interface Props {
   title: string;
   fields: FieldDef[];
   /** nilai awal form (kosong / default untuk tambah, data baris untuk edit) */
-  initial: Record<string, any>;
+  initial: FormValues;
   /** dipanggil saat Simpan; kalau melempar error, pesannya tampil di toast */
-  onSubmit: (values: Record<string, any>) => Promise<void>;
+  onSubmit: (values: FormValues) => Promise<void>;
   onClose: () => void;
 }
 
-/** Form popup sederhana: dipakai halaman admin untuk Tambah / Edit data ke backend. */
+/** Form popup: dipakai halaman admin untuk Tambah / Edit data ke backend. */
 export default function FormModal({ title, fields, initial, onSubmit, onClose }: Props) {
   const toast = useToast();
-  const [values, setValues] = useState<Record<string, any>>(() => {
-    const v: Record<string, any> = {};
+  const [values, setValues] = useState<FormValues>(() => {
+    const v: FormValues = {};
     fields.forEach((f) => (v[f.name] = initial[f.name] ?? ""));
     return v;
   });
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
+
+  function setField(name: string, value: unknown) {
+    setValues((old) => ({ ...old, [name]: value }));
+    setErrors((old) => {
+      if (!old[name]) return old;
+      const { [name]: _removed, ...rest } = old;
+      return rest;
+    });
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    for (const f of fields) {
-      if (f.required && !String(values[f.name] ?? "").trim()) {
-        return toast(`${f.label} wajib diisi.`);
-      }
+
+    const result = validateForm(fields, values);
+    if (!result.ok) {
+      setErrors(result.errors);
+      return;
     }
+
     setSaving(true);
     try {
       await onSubmit(values);
-    } catch (err: any) {
-      toast(err.message || "Gagal menyimpan.");
+    } catch (err) {
+      toast(getErrorMessage(err, "Gagal menyimpan."));
     } finally {
       setSaving(false);
     }
@@ -44,30 +58,40 @@ export default function FormModal({ title, fields, initial, onSubmit, onClose }:
 
   return (
     <Modal title={title} onClose={onClose}>
-      <form onSubmit={submit}>
+      <form onSubmit={submit} noValidate>
         {fields.map((f) => {
-          const set = (v: any) => setValues((old) => ({ ...old, [f.name]: v }));
+          const set = (v: unknown) => setField(f.name, v);
+          const err = errors[f.name];
+          const val = String(values[f.name] ?? "");
+
           if (f.type === "image") {
-            return <ImageField key={f.name} label={f.label} value={values[f.name] || ""} onChange={set} />;
+            return (
+              <div key={f.name}>
+                <ImageField label={f.label} value={val} onChange={set} />
+                {err && <div className="a-field-error">{err}</div>}
+              </div>
+            );
           }
+
           return (
-            <div className="a-field" key={f.name}>
+            <div className={`a-field${err ? " has-error" : ""}`} key={f.name}>
               <label>{f.label}{f.required && " *"}</label>
               {f.type === "textarea" ? (
-                <textarea rows={f.rows || 4} value={values[f.name] ?? ""} placeholder={f.placeholder} onChange={(e) => set(e.target.value)} />
+                <textarea rows={f.rows || 4} value={val} placeholder={f.placeholder} onChange={(e) => set(e.target.value)} />
               ) : f.type === "select" ? (
-                <select value={values[f.name] ?? ""} onChange={(e) => set(e.target.value)}>
+                <select value={val} onChange={(e) => set(e.target.value)}>
                   {f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               ) : (
                 <input
                   type={f.type === "number" ? "number" : "text"}
                   min={f.type === "number" ? 0 : undefined}
-                  value={values[f.name] ?? ""}
+                  value={val}
                   placeholder={f.placeholder}
                   onChange={(e) => set(e.target.value)}
                 />
               )}
+              {err && <div className="a-field-error">{err}</div>}
               {f.hint && <div className="a-field-hint">{f.hint}</div>}
             </div>
           );
