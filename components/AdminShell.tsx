@@ -4,6 +4,7 @@ import React, { useEffect, useState, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api, getToken, clearSession, AdminUser } from "@/lib/api";
+import NotificationBell from "@/components/NotificationBell";
 
 interface AdminShellProps {
   children: ReactNode;
@@ -148,7 +149,9 @@ export default function AdminShell({ children, admin }: AdminShellProps) {
             <span />
           </button>
           <div className="m-logo">asmorobangun</div>
-          <div className="m-burger-spacer" />
+          <div className="m-topbar-right">
+            <NotificationBell />
+          </div>
         </header>
 
         {children}

@@ -12,10 +12,12 @@ export function formatDateTime(iso?: string | null): string {
   return d.toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+// Format uang: selalu dua desimal, nol pun ditulis "Rp 0,00" (mis. Rp 350.000,00).
+const RUPIAH = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export function formatRupiah(n?: number | string | null): string {
-  const v = Number(n);
-  if (n === null || n === undefined || n === "" || isNaN(v)) return "-";
-  return "Rp " + v.toLocaleString("id-ID");
+  const v = n === null || n === undefined || n === "" ? 0 : Number(n);
+  return "Rp " + RUPIAH.format(isNaN(v) ? 0 : v);
 }
 
 export function truncate(s: string | undefined | null, n: number): string {
@@ -58,6 +60,7 @@ export function waLink(phone?: string | null, text?: string): string {
   if (!p) return "";
   return `https://wa.me/${p}${text ? "?text=" + encodeURIComponent(text) : ""}`;
 }
+
 export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function getErrorMessage(err: unknown, fallback = "Terjadi kesalahan.") {

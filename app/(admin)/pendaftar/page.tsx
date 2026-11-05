@@ -6,6 +6,7 @@ import { BOOKING_STATUS, PAYMENT_LABEL, formatDate, formatDateTime, formatRupiah
 import StatusBadge from "@/components/StatusBadge";
 import Modal from "@/components/Modal";
 import DetailList from "@/components/DetailList";
+import InfoRows from "@/components/InfoRows";
 import { useToast } from "@/components/Toast";
 
 interface Booking {
@@ -27,6 +28,8 @@ interface Booking {
   createdAt: string;
 }
 
+type Mode = "info" | "edit";
+
 function InfoIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -46,12 +49,23 @@ function EditIcon() {
   );
 }
 
+const isIsoDate = (d?: string | null) => !!d && /^\d{4}-\d{2}-\d{2}/.test(d);
+const showDate = (d?: string | null) => (d ? (isIsoDate(d) ? formatDate(d) : d) : null);
+
+// Tombol cepat di mode edit.
+const QUICK: { status: string; label: string; cls: string }[] = [
+  { status: "dikonfirmasi", label: "Konfirmasi", cls: "ok" },
+  { status: "ditolak", label: "Tolak", cls: "bad" },
+  { status: "selesai", label: "Selesai", cls: "done" },
+];
+
 export default function PendaftarPage() {
   const toast = useToast();
   const { data, loading, error, reload } = useLoad(() => api<{ bookings: Booking[] }>("/bookings"));
   const [fFacility, setFFacility] = useState("");
   const [fStatus, setFStatus] = useState("");
   const [selected, setSelected] = useState<Booking | null>(null);
+  const [mode, setMode] = useState<Mode>("info");
   const [newStatus, setNewStatus] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -59,9 +73,14 @@ export default function PendaftarPage() {
   const facilities = useMemo(() => [...new Set(all.map((b) => b.facilityName))], [all]);
   const rows = all.filter((b) => (!fFacility || b.facilityName === fFacility) && (!fStatus || b.status === fStatus));
 
-  function open(b: Booking) {
+  function open(b: Booking, m: Mode) {
     setSelected(b);
+    setMode(m);
     setNewStatus(b.status);
+  }
+
+  function close() {
+    setSelected(null);
   }
 
   async function saveStatus() {
@@ -70,7 +89,7 @@ export default function PendaftarPage() {
     try {
       await api(`/bookings/${selected.id}/status`, { method: "PATCH", body: { status: newStatus } });
       toast("Status booking diperbarui.");
-      setSelected(null);
+      close();
       reload();
     } catch (e: any) {
       toast(e.message);
@@ -78,6 +97,8 @@ export default function PendaftarPage() {
       setSaving(false);
     }
   }
+
+  const proofIsPdf = selected?.proofFile ? /\.pdf($|\?)/i.test(selected.proofFile) : false;
 
   return (
     <div className="a-page">
@@ -108,15 +129,15 @@ export default function PendaftarPage() {
                 <tr key={b.id}>
                   <td>{b.userName}</td>
                   <td>{b.facilityName}</td>
-                  <td>{b.date ? (/^\d{4}-\d{2}-\d{2}/.test(b.date) ? formatDate(b.date) : b.date) : "-"}</td>
+                  <td>{showDate(b.date) ?? "-"}</td>
                   <td>{b.amount ? formatRupiah(b.amount) : "-"}</td>
                   <td><StatusBadge status={b.status} labels={BOOKING_STATUS} /></td>
                   <td>
                     <div className="a-icons">
-                      <button className="a-icon-btn" aria-label="Lihat detail" title="Lihat detail" onClick={() => open(b)}>
+                      <button className="a-icon-btn" aria-label="Lihat detail" title="Lihat detail" onClick={() => open(b, "info")}>
                         <InfoIcon />
                       </button>
-                      <button className="a-icon-btn" aria-label="Ubah status" title="Ubah status" onClick={() => open(b)}>
+                      <button className="a-icon-btn" aria-label="Ubah status" title="Ubah status" onClick={() => open(b, "edit")}>
                         <EditIcon />
                       </button>
                     </div>
@@ -128,32 +149,124 @@ export default function PendaftarPage() {
         </div>
       </div>
 
-      {selected && (
-        <Modal title="Detail pendaftaran" onClose={() => setSelected(null)}>
-          <DetailList
-            rows={[
-              ["Nama", selected.userName],
-              ["Email", selected.userEmail],
+      {/* ========== MODE INFO: hanya baca, tertata per bagian ========== */}
+      {selected && mode === "info" && (
+        <Modal title="Detail pendaftaran" onClose={close}>
+          <div className="a-info-head">
+            <div>
+              <div className="a-info-name">{selected.userName}</div>
+              <div className="a-info-sub">{selected.facilityName}</div>
+            </div>
+            <StatusBadge status={selected.status} labels={BOOKING_STATUS} />
+          </div>
+
+          <div className="a-info-section">
+            <div className="a-info-title">Pendaftar</div>
+            <InfoRows
+              rows={[
+               ["Nama", selected.userName],
+               ["Email", selected.userEmail],
+              ["Dibuat", formatDateTime(selected.createdAt)],
+            ]}
+          />
+          </div>
+
+          <div className="a-info-section">
+            <div className="a-info-title">Layanan &amp; acara</div>
+            <InfoRows
+             rows={[
               ["Layanan", selected.facilityName],
-              ["Tanggal/jadwal", selected.date && /^\d{4}-\d{2}-\d{2}/.test(selected.date) ? formatDate(selected.date) : selected.date],
+              ["Tanggal/jadwal", showDate(selected.date)],
               ["Jenis acara", selected.eventType],
               ["Lokasi", selected.location],
               ["Jumlah tamu", selected.guestCount],
               ["Catatan", selected.notes],
-              ["Nominal", selected.amount ? formatRupiah(selected.amount) : null],
-              ["Metode bayar", selected.paymentMethod ? PAYMENT_LABEL[selected.paymentMethod] : null],
-              ["Bukti bayar", selected.proofFile ? <a href={fileUrl(selected.proofFile)} target="_blank" rel="noreferrer">Lihat bukti</a> : "Belum diunggah"],
-              ["Dibuat", formatDateTime(selected.createdAt)],
             ]}
-          />
-          <div className="a-field" style={{ marginTop: 16 }}>
-            <label>Ubah status</label>
-            <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
+         />
+          </div>
+
+          <div className="a-info-section">
+            <div className="a-info-title">Pembayaran</div>
+            <InfoRows
+             rows={[
+            ["Nominal", selected.amount ? formatRupiah(selected.amount) : null],
+            ["Metode bayar", selected.paymentMethod ? PAYMENT_LABEL[selected.paymentMethod] ?? selected.paymentMethod : null],
+             ]}
+         />
+            {selected.proofFile ? (
+              proofIsPdf ? (
+                <a className="a-btn a-btn-ghost a-btn-sm" href={fileUrl(selected.proofFile)} target="_blank" rel="noreferrer">
+                  Buka bukti bayar (PDF)
+                </a>
+              ) : (
+                <a href={fileUrl(selected.proofFile)} target="_blank" rel="noreferrer" title="Klik untuk memperbesar">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="a-proof" src={fileUrl(selected.proofFile)} alt="Bukti bayar" />
+                </a>
+              )
+            ) : (
+              <div className="a-info-empty">Bukti bayar belum diunggah.</div>
+            )}
+          </div>
+
+          <div className="a-modal-foot">
+            {selected.userEmail && (
+              <a className="a-btn a-btn-ghost" href={`mailto:${selected.userEmail}`}>Kirim email</a>
+            )}
+            <button className="a-btn a-btn-ghost" onClick={close}>Tutup</button>
+            <button className="a-btn a-btn-primary" onClick={() => setMode("edit")}>Ubah status</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ========== MODE EDIT: fokus mengambil keputusan ========== */}
+      {selected && mode === "edit" && (
+        <Modal title="Ubah status booking" onClose={close}>
+          <div className="a-info-head">
+            <div>
+              <div className="a-info-name">{selected.userName}</div>
+              <div className="a-info-sub">
+                {selected.facilityName}
+                {showDate(selected.date) ? ` · ${showDate(selected.date)}` : ""}
+              </div>
+              {selected.amount ? <div className="a-info-sub">Nominal {formatRupiah(selected.amount)}</div> : null}
+            </div>
+            <StatusBadge status={selected.status} labels={BOOKING_STATUS} />
+          </div>
+
+          <div className="a-info-section">
+            <div className="a-info-title">Keputusan cepat</div>
+            <div className="a-quick">
+              {QUICK.map((q) => (
+                <button
+                  key={q.status}
+                  type="button"
+                  className={`a-quick-btn ${q.cls}${newStatus === q.status ? " active" : ""}`}
+                  onClick={() => setNewStatus(q.status)}
+                >
+                  {q.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="a-field">
+            <label htmlFor="status-baru">Atau pilih status lain</label>
+            <select id="status-baru" value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
               {Object.entries(BOOKING_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
+
+          {newStatus !== selected.status && (
+            <div className="a-change-note">
+              Status akan berubah dari <strong>{BOOKING_STATUS[selected.status] ?? selected.status}</strong> menjadi{" "}
+              <strong>{BOOKING_STATUS[newStatus] ?? newStatus}</strong>.
+            </div>
+          )}
+
           <div className="a-modal-foot">
-            <button className="a-btn a-btn-ghost" onClick={() => setSelected(null)}>Tutup</button>
+            <button className="a-btn a-btn-ghost" onClick={() => setMode("info")}>Lihat detail</button>
+            <button className="a-btn a-btn-ghost" onClick={close}>Batal</button>
             <button className="a-btn a-btn-primary" disabled={saving || newStatus === selected.status} onClick={saveStatus}>
               {saving ? "Menyimpan..." : "Simpan status"}
             </button>

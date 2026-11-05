@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
-import { api, assetUrl } from "@/lib/api";
+import { assetUrl } from "@/lib/api";
+import { uploadImage } from "@/lib/upload";
 import { useToast } from "./Toast";
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
   onChange: (url: string) => void;
 }
 
-/** Pilih foto -> langsung diunggah ke POST /api/uploads/image, URL-nya disimpan di form. */
+/** Pilih foto -> divalidasi (jenis & ukuran) -> diunggah ke backend -> URL-nya disimpan di form. */
 export default function ImageField({ label, value, onChange }: Props) {
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -17,15 +18,13 @@ export default function ImageField({ label, value, onChange }: Props) {
 
   async function pick(file?: File) {
     if (!file) return;
-    const fd = new FormData();
-    fd.append("image", file);
     setBusy(true);
     try {
-      const res = await api<{ item: { url: string } }>("/uploads/image", { method: "POST", form: fd });
-      onChange(res.item.url);
+      const uploaded = await uploadImage(file);
+      onChange(uploaded.url);
       toast("Foto terunggah.");
-    } catch (e: any) {
-      toast(e.message);
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : "Gagal mengunggah foto.");
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -49,7 +48,8 @@ export default function ImageField({ label, value, onChange }: Props) {
           </button>
         )}
       </div>
-      <input ref={inputRef} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
+      <div className="a-field-hint">JPG, PNG, WEBP, atau GIF. Maksimal 8 MB.</div>
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={(e) => pick(e.target.files?.[0])} />
     </div>
   );
 }

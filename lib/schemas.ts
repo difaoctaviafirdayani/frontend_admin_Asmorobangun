@@ -26,12 +26,12 @@ export const LoginSchema = z.object({
   password: wajib("Password", 1, 64),
 });
 
-/* ---------- Topeng (kelola-topeng) ---------- */
+/* ---------- Topeng (kelola-topeng) ----------
+   Tidak ada stok: topeng dibuat berdasarkan pesanan (pesan langsung sesuai request). */
 export const TopengSchema = z.object({
   name: wajib("Nama topeng", 3, 120),
   character: opsional(255),
   price: angka("Harga").positive("Harga harus lebih dari 0."),
-  stock: angka("Stok").int("Stok harus bilangan bulat.").min(0, "Stok tidak boleh negatif.").default(0),
   color: opsional(50),
   image: opsional(500),
   desc: opsional(2000),
@@ -139,4 +139,14 @@ export function validate<T extends z.ZodTypeAny>(
       errors: parsed.error.flatten().fieldErrors,
     },
   };
+}
+
+/* ---------- Helper: ambil pesan error pertama tiap field ---------- */
+export function firstErrors(error: z.ZodError): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, messages] of Object.entries(error.flatten().fieldErrors)) {
+    const first = (messages as string[] | undefined)?.[0];
+    if (first) out[key] = first;
+  }
+  return out;
 }

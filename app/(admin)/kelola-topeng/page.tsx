@@ -9,6 +9,8 @@ import FormModal from "@/components/FormModal";
 import ResultPopup from "@/components/ResultPopup";
 import type { FieldDef } from "@/types/crud";
 
+const TH = { padding: "16px 20px", fontWeight: 700, fontSize: "14px", letterSpacing: "0.5px" } as const;
+
 const FIELDS: FieldDef[] = [
   { name: "name", label: "Nama topeng", required: true },
   { name: "character", label: "Karakter / watak" },
@@ -46,6 +48,7 @@ function Thumb({ src, alt }: { src?: string | null; alt: string }) {
   }
 
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={url}
       alt={alt}
@@ -120,8 +123,8 @@ export default function KelolaTopengPage() {
       await api(`/topeng/${row.id}`, { method: "DELETE" });
       toast("Topeng dihapus.");
       reload();
-    } catch (err: any) {
-      toast(err.message);
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Gagal menghapus topeng.");
     }
   }
 
@@ -138,6 +141,7 @@ export default function KelolaTopengPage() {
       >
         Kelola Topeng
       </h1>
+
       {error && <div style={{ color: "#A84C4C", marginBottom: "12px", fontSize: "14px" }}>{error}</div>}
 
       <div style={{ marginBottom: "20px" }}>
@@ -175,14 +179,21 @@ export default function KelolaTopengPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
             <thead>
               <tr style={{ borderBottom: "1.5px solid #D4BBA5", color: "#3A2A1A" }}>
-                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" }}>Gambar</th>
-                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" }}>Nama</th>
-                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" }}>Karakter</th>
-                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" }}>Harga</th>
-                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px", textAlign: "center" }}>Aksi</th>
+                <th style={TH}>Gambar</th>
+                <th style={TH}>Nama</th>
+                <th style={TH}>Karakter</th>
+                <th style={TH}>Harga</th>
+                <th style={{ ...TH, textAlign: "center" }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
+              {topengList.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ padding: "24px 20px", color: "#7A6A5A", textAlign: "center" }}>
+                    Belum ada topeng.
+                  </td>
+                </tr>
+              )}
               {topengList.map((row) => (
                 <tr key={row.id} style={{ borderBottom: "1px solid #E6D8C3" }}>
                   <td style={{ padding: "16px 20px", verticalAlign: "middle" }}>
@@ -194,7 +205,7 @@ export default function KelolaTopengPage() {
                   <td style={{ padding: "16px 20px", color: "#7A6A5A", verticalAlign: "middle", maxWidth: "300px" }}>
                     {truncate(row.character, 50)}
                   </td>
-                  <td style={{ padding: "16px 20px", color: "#5A4A3A", verticalAlign: "middle" }}>
+                  <td style={{ padding: "16px 20px", color: "#5A4A3A", verticalAlign: "middle", whiteSpace: "nowrap" }}>
                     {formatRupiah(row.price)}
                   </td>
                   <td style={{ padding: "16px 20px", textAlign: "center", verticalAlign: "middle" }}>

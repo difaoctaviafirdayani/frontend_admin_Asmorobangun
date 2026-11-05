@@ -1,127 +1,130 @@
 "use client";
 
-import { useActionState } from "react";
-import { createTopengAction } from "@/app/actions";
+import { useActionState, useEffect, useState } from "react";
+import { saveTopengAction } from "@/app/actions";
 import type { ActionState } from "@/lib/schemas";
+import { formatRupiah } from "@/lib/format";
+import ImageField from "@/components/ImageField";
+import { useToast } from "@/components/Toast";
+
+export interface TopengData {
+  id: string;
+  name: string;
+  character?: string;
+  color?: string;
+  price: number;
+  image?: string;
+  desc?: string;
+}
+
+interface Props {
+  topeng?: TopengData | null; // null/undefined = tambah baru, ada isinya = edit
+  onSuccess: () => void;
+  onCancel: () => void;
+}
 
 const initialState: ActionState = { success: false };
 
-const RED = "#c0392b";
-
-// Pesan error merah tepat di bawah field
 function FieldError({ messages }: { messages?: string[] }) {
   if (!messages?.length) return null;
-  return <p style={{ color: RED, fontSize: 12, marginTop: 4 }}>{messages[0]}</p>;
+  return <div className="a-field-error">{messages[0]}</div>;
 }
 
-// Border merah kalau field punya error
-function borderOf(messages?: string[]) {
-  return messages?.length ? { border: `1.5px solid ${RED}`, outlineColor: RED } : undefined;
-}
-
-export function TopengForm() {
-  const [state, formAction, isPending] = useActionState(createTopengAction, initialState);
+// Form topeng di dalam popup. Disimpan lewat Server Action (cek login -> role -> Zod -> backend).
+export function TopengForm({ topeng, onSuccess, onCancel }: Props) {
+  const toast = useToast();
+  const [state, formAction, isPending] = useActionState(saveTopengAction, initialState);
   const err = state.errors ?? {};
-  const v = state.values ?? {};
+  const saved: Record<string, string | undefined> = state.values ?? {};
+
+  const [price, setPrice] = useState(String(topeng?.price ?? ""));
+  const [image, setImage] = useState(topeng?.image ?? "");
+
+  // Berhasil: tutup popup + muat ulang daftar.
+  useEffect(() => {
+    if (state.success) {
+      toast(state.message || "Tersimpan.");
+      onSuccess();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  // Setelah validasi gagal, pulihkan isian yang tadi diketik.
+  useEffect(() => {
+    if (state.values) {
+      setPrice(state.values.price ?? "");
+      setImage(state.values.image ?? "");
+    }
+  }, [state.values]);
+
+  // Nilai awal tiap field: isian terakhir (kalau gagal validasi), kalau tidak ada pakai data topeng.
+  const val = (key: keyof TopengData): string => saved[key] ?? String(topeng?.[key] ?? "");
 
   return (
-    <form action={formAction} className="a-card" style={{ maxWidth: 560, padding: 24 }}>
-      <h2 style={{ marginBottom: 16 }}>Tambah Topeng Baru</h2>
+    <form action={formAction} noValidate className="a-form-grid">
+      {topeng && <input type="hidden" name="id" value={topeng.id} />}
 
-      {/* Banner pesan umum (gagal = merah, berhasil = hijau) */}
-      {state.message && (
-        <div
-          style={{
-            padding: "10px 12px",
-            borderRadius: 8,
-            fontSize: 13,
-            marginBottom: 16,
-            background: state.success ? "#e8f5e9" : "#fdecea",
-            border: `1px solid ${state.success ? "#81c784" : "#e57373"}`,
-            color: state.success ? "#2e7d32" : RED,
-          }}
-        >
-          {state.message}
-        </div>
-      )}
+      {state.message && !state.success && <div className="a-form-banner error full">{state.message}</div>}
 
-      <div className="a-field">
-        <label htmlFor="name">
-          Nama topeng <span style={{ color: RED }}>*</span>
-        </label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          defaultValue={v.name}
-          placeholder="mis. Topeng Panji"
-          style={borderOf(err.name)}
-        />
+      <div className={`a-field full${err.name ? " has-error" : ""}`}>
+        <label htmlFor="name">Nama topeng *</label>
+        <input id="name" name="name" type="text" defaultValue={val("name")} placeholder="mis. Topeng Panji" />
         <FieldError messages={err.name} />
       </div>
 
-      <div className="a-field">
-        <label htmlFor="character">Karakter</label>
-        <input
-          id="character"
-          name="character"
-          type="text"
-          defaultValue={v.character}
-          style={borderOf(err.character)}
-        />
+      <div className={`a-field${err.character ? " has-error" : ""}`}>
+        <label htmlFor="character">Karakter / watak</label>
+        <input id="character" name="character" type="text" defaultValue={val("character")} />
         <FieldError messages={err.character} />
       </div>
 
-      <div className="a-field">
-        <label htmlFor="price">
-          Harga (Rp) <span style={{ color: RED }}>*</span>
-        </label>
-        <input
-          id="price"
-          name="price"
-          type="number"
-          defaultValue={v.price}
-          placeholder="350000"
-          style={borderOf(err.price)}
-        />
-        <FieldError messages={err.price} />
-      </div>
-
-      <div className="a-field">
-        <label htmlFor="stock">Stok</label>
-        <input
-          id="stock"
-          name="stock"
-          type="number"
-          defaultValue={v.stock ?? "0"}
-          style={borderOf(err.stock)}
-        />
-        <FieldError messages={err.stock} />
-      </div>
-
-      <div className="a-field">
+      <div className={`a-field${err.color ? " has-error" : ""}`}>
         <label htmlFor="color">Warna</label>
-        <input id="color" name="color" type="text" defaultValue={v.color} style={borderOf(err.color)} />
+        <input id="color" name="color" type="text" defaultValue={val("color")} />
         <FieldError messages={err.color} />
       </div>
 
-      <div className="a-field">
+      <div className={`a-field full${err.price ? " has-error" : ""}`}>
+        <label htmlFor="price">Harga *</label>
+        <div className="a-money">
+          <span>Rp</span>
+          <input
+            id="price"
+            name="price"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="any"
+            value={price}
+            placeholder="0"
+            onChange={(e) => setPrice(e.target.value)}
+          />
+        </div>
+        <div className="a-field-hint">
+          Tampil sebagai {formatRupiah(price)}. Topeng dibuat sesuai pesanan, jadi tidak ada stok.
+        </div>
+        <FieldError messages={err.price} />
+      </div>
+
+      <div className={`a-field full${err.desc ? " has-error" : ""}`}>
         <label htmlFor="desc">Deskripsi</label>
-        <textarea id="desc" name="desc" rows={3} defaultValue={v.desc} style={borderOf(err.desc)} />
+        <textarea id="desc" name="desc" rows={4} defaultValue={val("desc")} />
         <FieldError messages={err.desc} />
       </div>
 
-      {/* Gambar belum dibuat; backend memakai gambar bawaan kalau kosong */}
-      <input type="hidden" name="image" value="" />
+      <div className="full">
+        <ImageField label="Foto topeng" value={image} onChange={setImage} />
+        <input type="hidden" name="image" value={image} />
+      </div>
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="a-btn a-btn-primary"
-        style={{ width: "100%", opacity: isPending ? 0.6 : 1 }}
-      >
-        {isPending ? "Sedang Menyimpan..." : "Simpan Topeng"}
-      </button>
+      <div className="a-modal-foot full">
+        <button type="button" className="a-btn a-btn-ghost" onClick={onCancel}>
+          Batal
+        </button>
+        <button type="submit" className="a-btn a-btn-primary" disabled={isPending}>
+          {isPending ? "Menyimpan..." : topeng ? "Simpan perubahan" : "Simpan topeng"}
+        </button>
+      </div>
     </form>
   );
 }

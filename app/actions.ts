@@ -1,8 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { getCurrentUser, createTopeng } from "@/lib/dal";
+import { getCurrentUser, createTopeng, updateTopeng } from "@/lib/dal";
 import { TopengSchema, ActionState } from "@/lib/schemas";
 
 // Ambil nilai teks dari FormData. Field yang tidak ada jadi "" supaya
@@ -12,24 +11,25 @@ function text(formData: FormData, key: string): string {
   return typeof v === "string" ? v : "";
 }
 
-export async function createTopengAction(
+// Satu action untuk tambah DAN edit topeng: kalau ada field "id" berarti edit.
+export async function saveTopengAction(
   prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  // 1. CEK LOGIN (via DAL). Tanpa sesi, otomatis redirect ke /login
+  // 1. Cek login (via DAL). Tanpa sesi, otomatis redirect ke /login
   const user = await getCurrentUser();
 
-  // 2. CEK ROLE. Hanya admin boleh menambah topeng
+  // 2. Cek role. Hanya admin boleh mengubah topeng
   if (user.role !== "admin") {
     return { success: false, message: "Kamu tidak punya akses untuk aksi ini." };
   }
 
-  // 3. VALIDASI INPUT (Zod safeParse)
+  // 3. Validasi input (Zod). Validasi klien bisa dilewati, server wajib cek
+  const id = text(formData, "id");
   const rawData = {
     name: text(formData, "name"),
     character: text(formData, "character"),
     price: text(formData, "price"),
-    stock: text(formData, "stock"),
     color: text(formData, "color"),
     image: text(formData, "image"),
     desc: text(formData, "desc"),
@@ -46,21 +46,21 @@ export async function createTopengAction(
     };
   }
 
-  // 4. MUTASI lewat DAL (identitas admin dari sesi/cookie)
+  // 4. Simpan lewat DAL (identitas admin diambil dari sesi/cookie)
   try {
-    await createTopeng(validation.data);
-  } catch (error: any) {
+    if (id) await updateTopeng(id, validation.data);
+    else await createTopeng(validation.data);
+  } catch (error: unknown) {
     console.error("Gagal menyimpan topeng:", error);
     return {
       success: false,
-      message: error?.message || "Terjadi kesalahan server saat menyimpan data.",
+      message: error instanceof Error ? error.message : "Terjadi kesalahan server saat menyimpan data.",
       values: rawData,
     };
   }
 
-  // 5. REVALIDASI: bersihkan cache halaman daftar supaya tidak menampilkan data lama
+  // 5. Bersihkan cache halaman daftar supaya tidak menampilkan data lama
   revalidatePath("/kelola-topeng");
 
-  // 6. Kembali ke halaman daftar. redirect() harus di luar try/catch
-  redirect("/kelola-topeng");
+  return { success: true, message: id ? "Topeng diperbarui." : "Topeng ditambahkan." };
 }
