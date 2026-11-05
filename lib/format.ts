@@ -60,3 +60,9 @@ export function waLink(phone?: string | null, text?: string): string {
   if (!p) return "";
   return `https://wa.me/${p}${text ? "?text=" + encodeURIComponent(text) : ""}`;
 }
+
+export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+export function getErrorMessage(err: unknown, fallback = "Terjadi kesalahan.") {
+  return err instanceof Error ? err.message : fallback;
+}

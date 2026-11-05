@@ -1,11 +1,13 @@
 "use client";
 import { useState } from "react";
-import { formatDate, truncate } from "@/lib/format";
+import { truncate, getErrorMessage } from "@/lib/format";
+import { toPengumumanView } from "@/lib/pengumuman";
 import { api } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
 import { useToast } from "@/components/Toast";
 import FormModal from "@/components/FormModal";
-import type { FieldDef } from "@/components/CrudPage";
+import type { FieldDef, FormValues } from "@/types/crud";
+import type { Pengumuman, PengumumanApi } from "@/types/pengumuman";
 
 const FIELDS: FieldDef[] = [
   { name: "title", label: "Judul", required: true },
@@ -23,27 +25,15 @@ const FIELDS: FieldDef[] = [
   { name: "image", label: "Gambar (opsional)", type: "image" },
 ];
 
-interface Pengumuman {
-  id: string;
-  title: string;
-  category: string;
-  date: string;
-  content: string;
-}
-
 export default function KelolaPengumumanPage() {
-    const toast = useToast();
-  const { data, error, reload } = useLoad(() => api<{ announcements: any[] }>("/announcements"));
-  // backend memakai field type & body; tampilan memakai category & content
-  const pengumumanList: Pengumuman[] = (data?.announcements || []).map((a) => ({
-    ...a,
-    category: a.type,
-    content: a.body,
-    date: formatDate(a.date),
-  }));
+  const toast = useToast();
+  const { data, error, reload } = useLoad(() =>
+    api<{ announcements: PengumumanApi[] }>("/announcements")
+  );
+  const pengumumanList: Pengumuman[] = (data?.announcements ?? []).map(toPengumumanView);
   const [editing, setEditing] = useState<Pengumuman | "new" | null>(null);
 
-  async function simpan(values: Record<string, any>) {
+  async function simpan(values: FormValues) {
     if (editing === "new") {
       await api("/announcements", { method: "POST", body: values });
       toast("Pengumuman ditambahkan.");
@@ -61,66 +51,70 @@ export default function KelolaPengumumanPage() {
       await api(`/announcements/${row.id}`, { method: "DELETE" });
       toast("Pengumuman dihapus.");
       reload();
-    } catch (err: any) {
-      toast(err.message);
+    } catch (err) {
+      toast(getErrorMessage(err));
     }
   }
 
   return (
     <div style={{ padding: "24px", maxWidth: "100%", margin: "0 auto" }}>
-      {/* Judul Halaman dengan Font Margarine */}
-      <h1 
-        style={{ 
-          fontSize: "32px", 
-          fontWeight: "normal", 
-          color: "#3A2A1A", 
-          marginBottom: "16px", 
-          fontFamily: "'Margarine', cursive, sans-serif" 
+      <h1
+        style={{
+          fontSize: "32px",
+          fontWeight: "normal",
+          color: "#3A2A1A",
+          marginBottom: "16px",
+          fontFamily: "'Margarine', cursive, sans-serif",
         }}
       >
         Kelola Pengumuman
       </h1>
-            {editing && (
+
+      {error && <div style={{ color: "#A84C4C", marginBottom: "12px", fontSize: "14px" }}>{error}</div>}
+
+      {editing && (
         <FormModal
           title={editing === "new" ? "Tulis pengumuman" : "Edit pengumuman"}
           fields={FIELDS}
-          initial={editing === "new" ? { type: "Pengumuman", color: "brown" } : (editing as any)}
+          initial={
+            editing === "new"
+              ? { type: "Pengumuman", color: "brown" }
+              : (editing as unknown as FormValues)
+          }
           onSubmit={simpan}
           onClose={() => setEditing(null)}
         />
       )}
 
-      {/* Tombol Tulis Pengumuman */}
       <div style={{ marginBottom: "20px" }}>
-        <button 
+        <button
           type="button"
           onClick={() => setEditing("new")}
-          style={{ 
-            backgroundColor: "#5A3E2B", 
-            color: "#FFFFFF", 
-            border: "none", 
-            padding: "10px 20px", 
-            borderRadius: "8px", 
-            fontSize: "14px", 
-            fontWeight: "600", 
+          style={{
+            backgroundColor: "#5A3E2B",
+            color: "#FFFFFF",
+            border: "none",
+            padding: "10px 20px",
+            borderRadius: "8px",
+            fontSize: "14px",
+            fontWeight: "600",
             cursor: "pointer",
             display: "inline-flex",
             alignItems: "center",
             gap: "8px",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
           }}
         >
           <span style={{ fontSize: "16px", fontWeight: "bold" }}>+</span> Tulis Pengumuman
         </button>
       </div>
 
-      {/* Kotak Tabel dengan Warna FDFCEA Persis Figma */}
-      <div 
-        style={{ 
-          backgroundColor: "#FDFCEA", 
-          border: "1.5px solid #D4BBA5", 
-          borderRadius: "12px", 
-          overflow: "hidden" 
+      <div
+        style={{
+          backgroundColor: "#FDFCEA",
+          border: "1.5px solid #D4BBA5",
+          borderRadius: "12px",
+          overflow: "hidden",
         }}
       >
         <div style={{ overflowX: "auto" }}>
@@ -143,22 +137,21 @@ export default function KelolaPengumumanPage() {
                   <td style={{ padding: "16px 20px", color: "#5A4A3A", verticalAlign: "middle" }}>{row.date}</td>
                   <td style={{ padding: "16px 20px", textAlign: "center", verticalAlign: "middle" }}>
                     <div style={{ display: "flex", gap: "10px", justifyContent: "center", alignItems: "center" }}>
-                      {/* Tombol Ikon Lingkaran (Edit) */}
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setEditing(row)}
                         title="Edit"
-                        style={{ 
-                          width: "32px", 
-                          height: "32px", 
-                          borderRadius: "50%", 
-                          border: "1px solid #C4A482", 
-                          background: "transparent", 
-                          cursor: "pointer", 
-                          display: "inline-flex", 
-                          alignItems: "center", 
-                          justifyContent: "center", 
-                          color: "#3A2A1A" 
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "50%",
+                          border: "1px solid #C4A482",
+                          background: "transparent",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#3A2A1A",
                         }}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -167,22 +160,21 @@ export default function KelolaPengumumanPage() {
                         </svg>
                       </button>
 
-                      {/* Tombol Ikon Lingkaran (Hapus) */}
-                      <button 
+                      <button
                         type="button"
                         onClick={() => hapus(row)}
                         title="Hapus"
-                        style={{ 
-                          width: "32px", 
-                          height: "32px", 
-                          borderRadius: "50%", 
-                          border: "1px solid #C4A482", 
-                          background: "transparent", 
-                          cursor: "pointer", 
-                          display: "inline-flex", 
-                          alignItems: "center", 
-                          justifyContent: "center", 
-                          color: "#3A2A1A" 
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "50%",
+                          border: "1px solid #C4A482",
+                          background: "transparent",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#3A2A1A",
                         }}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

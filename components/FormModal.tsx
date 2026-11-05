@@ -2,8 +2,10 @@
 import { FormEvent, useState } from "react";
 import Modal from "./Modal";
 import ImageField from "./ImageField";
-import type { FieldDef } from "./CrudPage";
-import { formatRupiah } from "@/lib/format";
+import { useToast } from "./Toast";
+import { formatRupiah, getErrorMessage } from "@/lib/format";
+import { validateForm } from "@/lib/validation";
+import type { FieldDef, FieldErrors, FormValues } from "@/types/crud";
 
 /** FieldDef + opsi tambahan: money = input uang (awalan Rp + pratinjau 0,00), full = lebar penuh. */
 export type FormField = FieldDef & { money?: boolean; full?: boolean };
@@ -11,54 +13,52 @@ export type FormField = FieldDef & { money?: boolean; full?: boolean };
 interface Props {
   title: string;
   fields: FormField[];
-  initial?: Record<string, any>;
+  /** nilai awal form (kosong / default untuk tambah, data baris untuk edit) */
+  initial?: FormValues;
   submitLabel?: string;
-  onSubmit: (values: Record<string, any>) => Promise<void> | void;
+  /** dipanggil saat Simpan; kalau melempar error, pesannya tampil di toast */
+  onSubmit: (values: FormValues) => Promise<void> | void;
   onClose: () => void;
   /** validasi tambahan (mis. Zod); kembalikan { namaField: "pesan" } atau null kalau valid */
   validate?: (values: Record<string, any>) => Record<string, string> | null;
 }
 
-/** Popup form rapi (2 kolom). Error per-field tampil merah di bawah isian, error server tampil di banner. */
+/** Popup form (2 kolom) untuk Tambah/Edit data. Error per-field tampil merah di bawah isian, error server lewat toast. */
 export default function FormModal({ title, fields, initial, submitLabel = "Simpan", onSubmit, onClose, validate }: Props) {
-  const [values, setValues] = useState<Record<string, any>>(() => {
-    const v: Record<string, any> = {};
+  const toast = useToast();
+  const [values, setValues] = useState<FormValues>(() => {
+    const v: FormValues = {};
     fields.forEach((f) => (v[f.name] = initial?.[f.name] ?? ""));
     return v;
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState("");
+  const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
 
-  const set = (name: string, v: any) => {
-    setValues((old) => ({ ...old, [name]: v }));
+  function setField(name: string, value: unknown) {
+    setValues((old) => ({ ...old, [name]: value }));
     setErrors((old) => {
       if (!old[name]) return old;
-      const next = { ...old };
-      delete next[name];
-      return next;
+      const { [name]: _removed, ...rest } = old;
+      return rest;
     });
-  };
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setFormError("");
 
-    const found: Record<string, string> = { ...(validate?.(values) ?? {}) };
-    for (const f of fields) {
-      if (f.required && !String(values[f.name] ?? "").trim()) found[f.name] = `${f.label} wajib diisi.`;
-    }
+    const result = validateForm(fields, values);
+    const extra = validate?.(values) ?? null;
+    const found: FieldErrors = { ...(result.ok ? {} : result.errors), ...(extra ?? {}) };
     if (Object.keys(found).length) {
       setErrors(found);
-      setFormError("Periksa kembali isian yang ditandai merah.");
       return;
     }
 
     setSaving(true);
     try {
       await onSubmit(values);
-    } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : "Gagal menyimpan. Coba lagi.");
+    } catch (err) {
+      toast(getErrorMessage(err, "Gagal menyimpan."));
     } finally {
       setSaving(false);
     }
@@ -67,16 +67,17 @@ export default function FormModal({ title, fields, initial, submitLabel = "Simpa
   return (
     <Modal title={title} onClose={onClose}>
       <form onSubmit={submit} noValidate className="a-form-grid">
-        {formError && <div className="a-form-banner error full">{formError}</div>}
-
         {fields.map((f) => {
+          const set = (v: unknown) => setField(f.name, v);
           const err = errors[f.name];
+          const val = String(values[f.name] ?? "");
           const wide = f.full || f.type === "textarea" || f.type === "image";
 
           if (f.type === "image") {
             return (
               <div className="full" key={f.name}>
-                <ImageField label={f.label} value={values[f.name] || ""} onChange={(v) => set(f.name, v)} />
+                <ImageField label={f.label} value={val} onChange={set} />
+                {err && <div className="a-field-error">{err}</div>}
               </div>
             );
           }
@@ -89,9 +90,9 @@ export default function FormModal({ title, fields, initial, submitLabel = "Simpa
               </label>
 
               {f.type === "textarea" ? (
-                <textarea rows={f.rows || 4} value={values[f.name] ?? ""} placeholder={f.placeholder} onChange={(e) => set(f.name, e.target.value)} />
+                <textarea rows={f.rows || 4} value={val} placeholder={f.placeholder} onChange={(e) => set(e.target.value)} />
               ) : f.type === "select" ? (
-                <select value={values[f.name] ?? ""} onChange={(e) => set(f.name, e.target.value)}>
+                <select value={val} onChange={(e) => set(e.target.value)}>
                   {f.options?.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
@@ -102,17 +103,17 @@ export default function FormModal({ title, fields, initial, submitLabel = "Simpa
                 <>
                   <div className="a-money">
                     <span>Rp</span>
-                    <input type="number" inputMode="decimal" min={0} step="any" value={values[f.name] ?? ""} placeholder="0" onChange={(e) => set(f.name, e.target.value)} />
+                    <input type="number" inputMode="decimal" min={0} step="any" value={val} placeholder="0" onChange={(e) => set(e.target.value)} />
                   </div>
-                  <div className="a-field-hint">Tampil sebagai {formatRupiah(values[f.name])}</div>
+                  <div className="a-field-hint">Tampil sebagai {formatRupiah(val)}</div>
                 </>
               ) : (
                 <input
                   type={f.type === "number" ? "number" : "text"}
                   min={f.type === "number" ? 0 : undefined}
-                  value={values[f.name] ?? ""}
+                  value={val}
                   placeholder={f.placeholder}
-                  onChange={(e) => set(f.name, e.target.value)}
+                  onChange={(e) => set(e.target.value)}
                 />
               )}
 
