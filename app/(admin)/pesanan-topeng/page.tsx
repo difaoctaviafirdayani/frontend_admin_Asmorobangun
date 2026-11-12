@@ -6,6 +6,7 @@ import { ORDER_STATUS, PAYMENT_LABEL, formatDateTime, formatRupiah, waLink } fro
 import StatusBadge from "@/components/StatusBadge";
 import Modal from "@/components/Modal";
 import DetailList from "@/components/DetailList";
+import CustomSelect from "../pendaftar/components/CustomSelect";
 import { useToast } from "@/components/Toast";
 
 interface Order {
@@ -110,10 +111,16 @@ export default function PesananTopengPage() {
       <h1 className="a-heading">Pesanan Topeng</h1>
 
       <div className="a-filters">
-        <select className="a-select" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
-          <option value="">Semua Status</option>
-          {Object.entries(ORDER_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+        <CustomSelect
+          ariaLabel="Filter status"
+          value={fStatus}
+          onChange={setFStatus}
+          minWidth={220}
+          options={[
+            { value: "", label: "Semua Status" },
+            ...Object.entries(ORDER_STATUS).map(([k, v]) => ({ value: k, label: String(v) })),
+          ]}
+        />
       </div>
 
       <div className="a-card a-card-cream">

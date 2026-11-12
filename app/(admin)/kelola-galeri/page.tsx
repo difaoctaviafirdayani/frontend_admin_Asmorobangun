@@ -47,7 +47,15 @@ export default function KelolaGaleriPage() {
   }
 
   return (
-    <div style={{ fontFamily: "var(--font-poppins), sans-serif", color: "#3A2A1A" }}>
+    <div
+      style={{
+        fontFamily: "var(--font-poppins), sans-serif",
+        color: "#3A2A1A",
+        padding: "24px",
+        maxWidth: "100%",
+        margin: "0 auto",
+      }}
+    >
       <h1
         style={{
           fontSize: "28px",
@@ -86,7 +94,8 @@ export default function KelolaGaleriPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, 380px)",
+          justifyContent: "center",
           gap: "24px",
         }}
       >
@@ -122,7 +131,7 @@ export default function KelolaGaleriPage() {
                   alt={item.title}
                   fill
                   style={{ objectFit: "cover" }}
-                  sizes="(max-width: 768px) 100vw, 320px"
+                  sizes="(max-width: 768px) 100vw, 380px"
                 />
               </div>
 

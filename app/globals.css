@@ -1638,3 +1638,14 @@ a {
   border-radius: 16px;
   padding: 24px;
 }
+.a-field.has-error input,
+.a-field.has-error textarea,
+.a-field.has-error select,
+.a-field.has-error .a-money {
+  border-color: #A84C4C;
+}
+.a-field-error {
+  color: #A84C4C;
+  font-size: 12px;
+  margin-top: 6px;
+}

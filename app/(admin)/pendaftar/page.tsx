@@ -1,34 +1,41 @@
 "use client";
-import { useMemo, useState } from "react";
-import { api, fileUrl } from "@/lib/api";
+import { useState } from "react";
+import { api, assetUrl, fileUrl } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
-import { BOOKING_STATUS, PAYMENT_LABEL, formatDate, formatDateTime, formatRupiah } from "@/lib/format";
+import { ORDER_STATUS, PAYMENT_LABEL, formatDateTime, formatRupiah, waLink } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import Modal from "@/components/Modal";
 import DetailList from "@/components/DetailList";
-import InfoRows from "@/components/InfoRows";
+import CustomSelect from "./components/CustomSelect";
 import { useToast } from "@/components/Toast";
 
-interface Booking {
+interface Order {
   id: string;
-  facilityId: string;
-  facilityName: string;
-  bookingType: string;
+  topengName: string;
+  topengImage: string;
   userName: string;
-  userEmail: string;
-  date: string | null;
-  notes: string;
-  eventType: string | null;
-  location: string | null;
-  guestCount: string | number | null;
+  buyerPhone: string;
+  qty: number;
+  unitPrice: number | string;
+  total: number;
+  customName: string | null;
+  customDesign: string | null;
+  message: string;
   paymentMethod: string | null;
-  amount: number | null;
   proofFile: string | null;
   status: string;
   createdAt: string;
+  chatLog: { from: string; text: string; date: string }[];
 }
 
 type Mode = "info" | "edit";
+
+// Figma menampilkan tanggal sebagai dd/mm/yyyy
+function tanggal(value: string) {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
 
 function InfoIcon() {
   return (
@@ -49,34 +56,30 @@ function EditIcon() {
   );
 }
 
-const isIsoDate = (d?: string | null) => !!d && /^\d{4}-\d{2}-\d{2}/.test(d);
-const showDate = (d?: string | null) => (d ? (isIsoDate(d) ? formatDate(d) : d) : null);
-
-// Tombol cepat di mode edit.
+// Tombol cepat di mode edit, mengikuti alur pesanan.
 const QUICK: { status: string; label: string; cls: string }[] = [
   { status: "dikonfirmasi", label: "Konfirmasi", cls: "ok" },
+  { status: "diproses", label: "Proses", cls: "done" },
+  { status: "dikirim", label: "Kirim", cls: "done" },
+  { status: "selesai", label: "Selesai", cls: "ok" },
   { status: "ditolak", label: "Tolak", cls: "bad" },
-  { status: "selesai", label: "Selesai", cls: "done" },
 ];
 
-export default function PendaftarPage() {
+export default function PesananTopengPage() {
   const toast = useToast();
-  const { data, loading, error, reload } = useLoad(() => api<{ bookings: Booking[] }>("/bookings"));
-  const [fFacility, setFFacility] = useState("");
+  const { data, loading, error, reload } = useLoad(() => api<{ orders: Order[] }>("/topeng/admin/orders"));
   const [fStatus, setFStatus] = useState("");
-  const [selected, setSelected] = useState<Booking | null>(null);
+  const [selected, setSelected] = useState<Order | null>(null);
   const [mode, setMode] = useState<Mode>("info");
   const [newStatus, setNewStatus] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const all = data?.bookings || [];
-  const facilities = useMemo(() => [...new Set(all.map((b) => b.facilityName))], [all]);
-  const rows = all.filter((b) => (!fFacility || b.facilityName === fFacility) && (!fStatus || b.status === fStatus));
+  const rows = (data?.orders || []).filter((o) => !fStatus || o.status === fStatus);
 
-  function open(b: Booking, m: Mode) {
-    setSelected(b);
+  function open(o: Order, m: Mode) {
+    setSelected(o);
     setMode(m);
-    setNewStatus(b.status);
+    setNewStatus(o.status);
   }
 
   function close() {
@@ -87,8 +90,8 @@ export default function PendaftarPage() {
     if (!selected) return;
     setSaving(true);
     try {
-      await api(`/bookings/${selected.id}/status`, { method: "PATCH", body: { status: newStatus } });
-      toast("Status booking diperbarui.");
+      await api(`/topeng/admin/orders/${selected.id}/status`, { method: "PATCH", body: { status: newStatus } });
+      toast("Status pesanan diperbarui.");
       close();
       reload();
     } catch (e: any) {
@@ -98,46 +101,58 @@ export default function PendaftarPage() {
     }
   }
 
+  const wa = selected
+    ? waLink(selected.buyerPhone, `Halo ${selected.userName}, terkait pesanan ${selected.topengName} di Sanggar Asmorobangun.`)
+    : "";
   const proofIsPdf = selected?.proofFile ? /\.pdf($|\?)/i.test(selected.proofFile) : false;
 
   return (
     <div className="a-page">
-      <h1 className="a-heading">Pendaftar &amp; Booking</h1>
+      <h1 className="a-heading">Pesanan Topeng</h1>
 
       <div className="a-filters">
-        <select className="a-select" value={fFacility} onChange={(e) => setFFacility(e.target.value)}>
-          <option value="">Semua Layanan</option>
-          {facilities.map((f) => <option key={f} value={f}>{f}</option>)}
-        </select>
-        <select className="a-select" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
-          <option value="">Semua Status</option>
-          {Object.entries(BOOKING_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+        <CustomSelect
+          ariaLabel="Filter status"
+          value={fStatus}
+          onChange={setFStatus}
+          minWidth={220}
+          options={[
+            { value: "", label: "Semua Status" },
+            ...Object.entries(ORDER_STATUS).map(([k, v]) => ({ value: k, label: String(v) })),
+          ]}
+        />
       </div>
 
       <div className="a-card a-card-cream">
         <div className="a-table-wrap">
           <table className="a-table">
             <thead>
-              <tr><th>NAMA</th><th>LAYANAN</th><th>TANGGAL</th><th>NOMINAL</th><th>STATUS</th><th>AKSI</th></tr>
+              <tr>
+                <th>NAMA</th>
+                <th>TOPENG</th>
+                <th style={{ textAlign: "center" }}>JUMLAH</th>
+                <th>TANGGAL</th>
+                <th>STATUS</th>
+                <th>AKSI</th>
+              </tr>
             </thead>
             <tbody>
               {loading && <tr><td colSpan={6}>Memuat...</td></tr>}
               {error && <tr><td colSpan={6} className="a-empty">{error}</td></tr>}
-              {!loading && !error && rows.length === 0 && <tr><td colSpan={6} className="a-empty">Tidak ada data.</td></tr>}
-              {rows.map((b) => (
-                <tr key={b.id}>
-                  <td>{b.userName}</td>
-                  <td>{b.facilityName}</td>
-                  <td>{showDate(b.date) ?? "-"}</td>
-                  <td>{b.amount ? formatRupiah(b.amount) : "-"}</td>
-                  <td><StatusBadge status={b.status} labels={BOOKING_STATUS} /></td>
+              {!loading && !error && rows.length === 0 && <tr><td colSpan={6} className="a-empty">Tidak ada pesanan.</td></tr>}
+              {rows.map((o) => (
+                <tr key={o.id}>
+                  <td>{o.userName}</td>
+                  <td>{o.topengName}</td>
+                  <td style={{ textAlign: "center" }}>{o.qty}</td>
+                  <td>{tanggal(o.createdAt)}</td>
+                  <td><StatusBadge status={o.status} labels={ORDER_STATUS} /></td>
                   <td>
                     <div className="a-icons">
-                      <button className="a-icon-btn" aria-label="Lihat detail" title="Lihat detail" onClick={() => open(b, "info")}>
+                      <button className="a-icon-btn" aria-label="Lihat detail" title="Lihat detail" onClick={() => open(o, "info")}>
                         <InfoIcon />
                       </button>
-                      <button className="a-icon-btn" aria-label="Ubah status" title="Ubah status" onClick={() => open(b, "edit")}>
+                      <button className="a-icon-btn" aria-label="Ubah status" title="Ubah status" onClick={() => open(o, "edit")}>
                         <EditIcon />
                       </button>
                     </div>
@@ -151,48 +166,51 @@ export default function PendaftarPage() {
 
       {/* ========== MODE INFO: hanya baca, tertata per bagian ========== */}
       {selected && mode === "info" && (
-        <Modal title="Detail pendaftaran" onClose={close}>
+        <Modal title="Detail pesanan topeng" onClose={close}>
           <div className="a-info-head">
-            <div>
-              <div className="a-info-name">{selected.userName}</div>
-              <div className="a-info-sub">{selected.facilityName}</div>
+            {selected.topengImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img className="a-thumb" src={assetUrl(selected.topengImage)} alt="" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
+            )}
+            <div style={{ flex: 1 }}>
+              <div className="a-info-name">{selected.topengName} x{selected.qty}</div>
+              <div className="a-info-sub">Pemesan: {selected.userName}</div>
+              <div className="a-info-sub">Total {formatRupiah(selected.total)}</div>
             </div>
-            <StatusBadge status={selected.status} labels={BOOKING_STATUS} />
+            <StatusBadge status={selected.status} labels={ORDER_STATUS} />
           </div>
 
           <div className="a-info-section">
-            <div className="a-info-title">Pendaftar</div>
-            <InfoRows
+            <div className="a-info-title">Pemesan</div>
+            <DetailList
               rows={[
-               ["Nama", selected.userName],
-               ["Email", selected.userEmail],
-              ["Dibuat", formatDateTime(selected.createdAt)],
-            ]}
-          />
+                ["Nama", selected.userName],
+                ["No. HP", selected.buyerPhone],
+                ["Dibuat", formatDateTime(selected.createdAt)],
+              ]}
+            />
           </div>
 
           <div className="a-info-section">
-            <div className="a-info-title">Layanan &amp; acara</div>
-            <InfoRows
-             rows={[
-              ["Layanan", selected.facilityName],
-              ["Tanggal/jadwal", showDate(selected.date)],
-              ["Jenis acara", selected.eventType],
-              ["Lokasi", selected.location],
-              ["Jumlah tamu", selected.guestCount],
-              ["Catatan", selected.notes],
-            ]}
-         />
+            <div className="a-info-title">Pesanan</div>
+            <DetailList
+              rows={[
+                ["Topeng", selected.topengName],
+                ["Jumlah", selected.qty],
+                ["Harga satuan", formatRupiah(selected.unitPrice)],
+                ["Total", formatRupiah(selected.total)],
+                ["Nama custom", selected.customName],
+                ["Desain custom", selected.customDesign],
+                ["Pesan", selected.message],
+              ]}
+            />
           </div>
 
           <div className="a-info-section">
             <div className="a-info-title">Pembayaran</div>
-            <InfoRows
-             rows={[
-            ["Nominal", selected.amount ? formatRupiah(selected.amount) : null],
-            ["Metode bayar", selected.paymentMethod ? PAYMENT_LABEL[selected.paymentMethod] ?? selected.paymentMethod : null],
-             ]}
-         />
+            <DetailList
+              rows={[["Metode bayar", selected.paymentMethod ? PAYMENT_LABEL[selected.paymentMethod] ?? selected.paymentMethod : null]]}
+            />
             {selected.proofFile ? (
               proofIsPdf ? (
                 <a className="a-btn a-btn-ghost a-btn-sm" href={fileUrl(selected.proofFile)} target="_blank" rel="noreferrer">
@@ -209,10 +227,22 @@ export default function PendaftarPage() {
             )}
           </div>
 
+          {selected.chatLog?.length > 0 && (
+            <div className="a-info-section">
+              <div className="a-info-title">Riwayat pesanan</div>
+              <div className="a-chat">
+                {selected.chatLog.map((m, i) => (
+                  <div className="a-chat-msg" key={i}>
+                    {m.text}
+                    <div className="a-muted">{m.from} · {formatDateTime(m.date)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="a-modal-foot">
-            {selected.userEmail && (
-              <a className="a-btn a-btn-ghost" href={`mailto:${selected.userEmail}`}>Kirim email</a>
-            )}
+            {wa && <a className="a-btn a-btn-gold" href={wa} target="_blank" rel="noreferrer">WhatsApp pembeli</a>}
             <button className="a-btn a-btn-ghost" onClick={close}>Tutup</button>
             <button className="a-btn a-btn-primary" onClick={() => setMode("edit")}>Ubah status</button>
           </div>
@@ -221,22 +251,21 @@ export default function PendaftarPage() {
 
       {/* ========== MODE EDIT: fokus mengambil keputusan ========== */}
       {selected && mode === "edit" && (
-        <Modal title="Ubah status booking" onClose={close}>
+        <Modal title="Ubah status pesanan" onClose={close}>
           <div className="a-info-head">
-            <div>
+            <div style={{ flex: 1 }}>
               <div className="a-info-name">{selected.userName}</div>
-              <div className="a-info-sub">
-                {selected.facilityName}
-                {showDate(selected.date) ? ` · ${showDate(selected.date)}` : ""}
-              </div>
-              {selected.amount ? <div className="a-info-sub">Nominal {formatRupiah(selected.amount)}</div> : null}
+              <div className="a-info-sub">{selected.topengName} x{selected.qty} · {formatRupiah(selected.total)}</div>
+              {(selected.customName || selected.customDesign) && (
+                <div className="a-info-sub">Custom: {[selected.customName, selected.customDesign].filter(Boolean).join(" / ")}</div>
+              )}
             </div>
-            <StatusBadge status={selected.status} labels={BOOKING_STATUS} />
+            <StatusBadge status={selected.status} labels={ORDER_STATUS} />
           </div>
 
           <div className="a-info-section">
             <div className="a-info-title">Keputusan cepat</div>
-            <div className="a-quick">
+            <div className="a-quick a-quick-5">
               {QUICK.map((q) => (
                 <button
                   key={q.status}
@@ -251,20 +280,21 @@ export default function PendaftarPage() {
           </div>
 
           <div className="a-field">
-            <label htmlFor="status-baru">Atau pilih status lain</label>
-            <select id="status-baru" value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
-              {Object.entries(BOOKING_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            <label htmlFor="status-pesanan">Atau pilih status lain</label>
+            <select id="status-pesanan" value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
+              {Object.entries(ORDER_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
 
           {newStatus !== selected.status && (
             <div className="a-change-note">
-              Status akan berubah dari <strong>{BOOKING_STATUS[selected.status] ?? selected.status}</strong> menjadi{" "}
-              <strong>{BOOKING_STATUS[newStatus] ?? newStatus}</strong>.
+              Status akan berubah dari <strong>{ORDER_STATUS[selected.status] ?? selected.status}</strong> menjadi{" "}
+              <strong>{ORDER_STATUS[newStatus] ?? newStatus}</strong>.
             </div>
           )}
 
           <div className="a-modal-foot">
+            {wa && <a className="a-btn a-btn-gold" href={wa} target="_blank" rel="noreferrer">WhatsApp pembeli</a>}
             <button className="a-btn a-btn-ghost" onClick={() => setMode("info")}>Lihat detail</button>
             <button className="a-btn a-btn-ghost" onClick={close}>Batal</button>
             <button className="a-btn a-btn-primary" disabled={saving || newStatus === selected.status} onClick={saveStatus}>

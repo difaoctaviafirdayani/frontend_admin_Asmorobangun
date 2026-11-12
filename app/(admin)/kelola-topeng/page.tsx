@@ -1,6 +1,6 @@
 "use client";
 import type { Topeng } from "@/types/topeng";
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { formatRupiah, truncate } from "@/lib/format";
 import { api, assetUrl } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
@@ -14,7 +14,6 @@ const TH = { padding: "16px 20px", fontWeight: 700, fontSize: "14px", letterSpac
 const FIELDS: FieldDef[] = [
   { name: "name", label: "Nama topeng", required: true },
   { name: "character", label: "Karakter / watak" },
-  { name: "color", label: "Warna" },
   { name: "price", label: "Harga (Rp)", type: "number", required: true },
   { name: "desc", label: "Deskripsi", type: "textarea", rows: 4 },
   { name: "image", label: "Foto topeng", type: "image" },
@@ -23,7 +22,37 @@ const FIELDS: FieldDef[] = [
 const MIN_HARGA = 1000;
 const MAX_HARGA = 10000000;
 
-function Thumb({ src, alt }: { src?: string | null; alt: string }) {
+/** Validasi nama & harga: dipanggil FormModal, error tampil merah di kotak yang bermasalah (tanpa popup). */
+function validasiForm(values: Record<string, any>): Record<string, string> | null {
+  const errs: Record<string, string> = {};
+
+  const name = String(values.name || "").trim();
+  if (name.length < 3) errs.name = "Nama topeng minimal 3 karakter.";
+
+  const raw = values.price;
+  if (raw === "" || raw == null) {
+    errs.price = "Harga wajib diisi.";
+  } else {
+    const price = Number(raw);
+    if (!Number.isInteger(price)) {
+      errs.price = "Harga harus berupa angka bulat (tanpa koma).";
+    } else if (price < MIN_HARGA || price > MAX_HARGA) {
+      errs.price = `Harga minimal ${formatRupiah(MIN_HARGA)} dan maksimal ${formatRupiah(MAX_HARGA)}.`;
+    }
+  }
+
+  return Object.keys(errs).length ? errs : null;
+}
+
+function Thumb({
+  src,
+  alt,
+  onPreview,
+}: {
+  src?: string | null;
+  alt: string;
+  onPreview?: (url: string, alt: string) => void;
+}) {
   const [gagalMuat, setGagalMuat] = useState(false);
   const url = assetUrl(src);
 
@@ -53,6 +82,8 @@ function Thumb({ src, alt }: { src?: string | null; alt: string }) {
       src={url}
       alt={alt}
       onError={() => setGagalMuat(true)}
+      onClick={() => onPreview?.(url, alt)}
+      title="Klik untuk memperbesar"
       style={{
         width: "40px",
         height: "40px",
@@ -60,8 +91,199 @@ function Thumb({ src, alt }: { src?: string | null; alt: string }) {
         borderRadius: "6px",
         border: "1px solid #D4BBA5",
         display: "block",
+        cursor: "pointer",
       }}
     />
+  );
+}
+
+function Lightbox({ url, alt, onClose }: { url: string; alt: string; onClose: () => void }) {
+  // Tutup pakai tombol Esc + kunci scroll halaman selama modal terbuka
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.4)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 9999,
+        padding: "24px",
+        cursor: "default",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Tutup"
+        style={{
+          position: "absolute",
+          top: "20px",
+          right: "24px",
+          width: "40px",
+          height: "40px",
+          borderRadius: "50%",
+          border: "none",
+          backgroundColor: "#FDFCEA",
+          color: "#3A2A1A",
+          fontSize: "20px",
+          fontWeight: 700,
+          cursor: "pointer",
+        }}
+      >
+        ✕
+      </button>
+
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={alt}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: "90vw",
+          maxHeight: "80vh",
+          objectFit: "contain",
+          borderRadius: "10px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+          cursor: "default",
+        }}
+      />
+      <div style={{ marginTop: "14px", color: "#FDFCEA", fontSize: "16px", fontWeight: 600 }}>{alt}</div>
+    </div>
+  );
+}
+
+function ConfirmDialog({
+  title,
+  message,
+  confirmLabel = "Hapus",
+  loading = false,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  message: ReactNode;
+  confirmLabel?: string;
+  loading?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  // Tutup pakai tombol Esc + kunci scroll halaman selama dialog terbuka
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !loading) onCancel();
+    }
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onCancel, loading]);
+
+  return (
+    <div
+      onClick={() => !loading && onCancel()}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.4)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 9999,
+        padding: "24px",
+      }}
+    >
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderRadius: "16px",
+          padding: "28px",
+          width: "100%",
+          maxWidth: "420px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            width: "52px",
+            height: "52px",
+            borderRadius: "50%",
+            backgroundColor: "#F6E3E3",
+            color: "#A84C4C",
+            fontSize: "26px",
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 14px",
+          }}
+        >
+          !
+        </div>
+        <h2 style={{ margin: "0 0 8px", fontSize: "20px", color: "#3A2A1A" }}>{title}</h2>
+        <p style={{ margin: "0 0 22px", fontSize: "14px", lineHeight: 1.5, color: "#7A6A5A" }}>{message}</p>
+        <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            style={{
+              backgroundColor: "#F1E6DF",
+              color: "#5A3E2B",
+              border: "none",
+              padding: "10px 22px",
+              borderRadius: "8px",
+              fontSize: "14px",
+              fontWeight: 600,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            style={{
+              backgroundColor: "#A84C4C",
+              color: "#FFFFFF",
+              border: "none",
+              padding: "10px 22px",
+              borderRadius: "8px",
+              fontSize: "14px",
+              fontWeight: 600,
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            {loading ? "Menghapus..." : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -73,6 +295,9 @@ export default function KelolaTopengPage() {
   const topengList: Topeng[] = data?.topeng || [];
   const [editing, setEditing] = useState<Topeng | "new" | null>(null);
   const [popup, setPopup] = useState<PopupState>(null);
+  const [preview, setPreview] = useState<{ url: string; alt: string } | null>(null);
+  const [toDelete, setToDelete] = useState<Topeng | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   function gagal(message: string) {
     setPopup({ type: "error", title: "Gagal menyimpan", message });
@@ -81,19 +306,6 @@ export default function KelolaTopengPage() {
   async function simpan(values: Record<string, any>) {
     const name = String(values.name || "").trim();
     const price = Number(values.price);
-
-    if (name.length < 3) {
-      gagal("Nama topeng minimal 3 karakter.");
-      return;
-    }
-    if (values.price === "" || values.price == null) {
-      gagal("Harga wajib diisi.");
-      return;
-    }
-    if (!Number.isInteger(price) || price < MIN_HARGA || price > MAX_HARGA) {
-      gagal(`Harga harus berupa angka bulat (tanpa koma) antara ${formatRupiah(MIN_HARGA)} dan ${formatRupiah(MAX_HARGA)}.`);
-      return;
-    }
 
     const body = { ...values, name, price };
     const baru = editing === "new";
@@ -117,14 +329,18 @@ export default function KelolaTopengPage() {
     }
   }
 
-  async function hapus(row: Topeng) {
-    if (!confirm(`Hapus topeng "${row.name}"?`)) return;
+  async function konfirmasiHapus() {
+    if (!toDelete) return;
+    setDeleting(true);
     try {
-      await api(`/topeng/${row.id}`, { method: "DELETE" });
+      await api(`/topeng/${toDelete.id}`, { method: "DELETE" });
       toast("Topeng dihapus.");
       reload();
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : "Gagal menghapus topeng.");
+    } finally {
+      setDeleting(false);
+      setToDelete(null);
     }
   }
 
@@ -197,7 +413,7 @@ export default function KelolaTopengPage() {
               {topengList.map((row) => (
                 <tr key={row.id} style={{ borderBottom: "1px solid #E6D8C3" }}>
                   <td style={{ padding: "16px 20px", verticalAlign: "middle" }}>
-                    <Thumb src={row.image} alt={row.name} />
+                    <Thumb src={row.image} alt={row.name} onPreview={(url, alt) => setPreview({ url, alt })} />
                   </td>
                   <td style={{ padding: "16px 20px", verticalAlign: "middle" }}>
                     <strong style={{ color: "#3A2A1A", display: "block" }}>{row.name}</strong>
@@ -228,7 +444,7 @@ export default function KelolaTopengPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => hapus(row)}
+                        onClick={() => setToDelete(row)}
                         style={{
                           backgroundColor: "#A84C4C",
                           color: "#FFFFFF",
@@ -257,6 +473,7 @@ export default function KelolaTopengPage() {
           fields={FIELDS}
           initial={editing === "new" ? {} : (editing as any)}
           onSubmit={simpan}
+          validate={validasiForm}
           onClose={() => setEditing(null)}
         />
       )}
@@ -269,6 +486,22 @@ export default function KelolaTopengPage() {
           onClose={() => setPopup(null)}
         />
       )}
+
+      {toDelete && (
+        <ConfirmDialog
+          title="Hapus topeng?"
+          message={
+            <>
+              Anda yakin ingin menghapus topeng <strong style={{ color: "#3A2A1A" }}>{toDelete.name}</strong>?
+            </>
+          }
+          loading={deleting}
+          onConfirm={konfirmasiHapus}
+          onCancel={() => setToDelete(null)}
+        />
+      )}
+
+      {preview && <Lightbox url={preview.url} alt={preview.alt} onClose={() => setPreview(null)} />}
     </div>
   );
 }

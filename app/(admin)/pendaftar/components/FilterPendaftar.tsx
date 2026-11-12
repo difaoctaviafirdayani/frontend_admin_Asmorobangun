@@ -1,4 +1,5 @@
 import { BOOKING_STATUS } from "@/lib/format";
+import CustomSelect from "./CustomSelect";
 
 interface FilterPendaftarProps {
   facilities: string[];
@@ -17,31 +18,27 @@ export default function FilterPendaftar({
 }: FilterPendaftarProps) {
   return (
     <div className="a-filters">
-      <select
-        className="a-select"
+      <CustomSelect
+        ariaLabel="Filter layanan"
         value={fFacility}
-        onChange={(e) => onFacilityChange(e.target.value)}
-      >
-        <option value="">Semua Layanan</option>
-        {facilities.map((f) => (
-          <option key={f} value={f}>
-            {f}
-          </option>
-        ))}
-      </select>
+        onChange={onFacilityChange}
+        minWidth={220}
+        options={[
+          { value: "", label: "Semua Layanan" },
+          ...facilities.map((f) => ({ value: f, label: f })),
+        ]}
+      />
 
-      <select
-        className="a-select"
+      <CustomSelect
+        ariaLabel="Filter status"
         value={fStatus}
-        onChange={(e) => onStatusChange(e.target.value)}
-      >
-        <option value="">Semua Status</option>
-        {Object.entries(BOOKING_STATUS).map(([k, v]) => (
-          <option key={k} value={k}>
-            {v}
-          </option>
-        ))}
-      </select>
+        onChange={onStatusChange}
+        minWidth={200}
+        options={[
+          { value: "", label: "Semua Status" },
+          ...Object.entries(BOOKING_STATUS).map(([k, v]) => ({ value: k, label: String(v) })),
+        ]}
+      />
     </div>
   );
 }
