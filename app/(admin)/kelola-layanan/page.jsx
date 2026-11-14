@@ -19,12 +19,20 @@ export default function KelolaLayananPage() {
   const { data, error, reload } = useLoad(() => api("/facilities"));
   const layananList = (data?.facilities ?? []).map(toLayananView);
   const [editing, setEditing] = useState(null);
+  const [creating, setCreating] = useState(false);
 
   async function simpan(values) {
     if (!editing) return;
     await api(`/facilities/${editing.id}`, { method: "PATCH", body: values });
     toast("Layanan diperbarui.");
     setEditing(null);
+    reload();
+  }
+
+  async function tambah(values) {
+    await api("/facilities", { method: "POST", body: values });
+    toast("Layanan ditambahkan.");
+    setCreating(false);
     reload();
   }
 
@@ -35,7 +43,7 @@ export default function KelolaLayananPage() {
           fontSize: "32px",
           fontWeight: "normal",
           color: "#3A2A1A",
-          marginBottom: "24px",
+          marginBottom: "16px",
           fontFamily: "'Margarine', cursive, sans-serif",
         }}
       >
@@ -43,6 +51,39 @@ export default function KelolaLayananPage() {
       </h1>
 
       {error && <div style={{ color: "#A84C4C", marginBottom: "12px", fontSize: "14px" }}>{error}</div>}
+
+      <div style={{ marginBottom: "20px" }}>
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          style={{
+            backgroundColor: "#5A3E2B",
+            color: "#FFFFFF",
+            border: "none",
+            padding: "10px 20px",
+            borderRadius: "8px",
+            fontSize: "14px",
+            fontWeight: "600",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+          }}
+        >
+          <span style={{ fontSize: "16px", fontWeight: "bold" }}>+</span> Tambah layanan
+        </button>
+      </div>
+
+      {creating && (
+        <FormModal
+          title="Tambah layanan"
+          fields={FIELDS}
+          initial={{}}
+          onSubmit={tambah}
+          onClose={() => setCreating(false)}
+        />
+      )}
 
       {editing && (
         <FormModal

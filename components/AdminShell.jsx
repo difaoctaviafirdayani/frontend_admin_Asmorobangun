@@ -16,13 +16,13 @@ const menuGroups = [
     items: [
       { name: "Pendaftar & Booking", href: "/pendaftar" },
       { name: "Pesanan Topeng", href: "/pesanan-topeng" },
-      { name: "Kelola Layanan", href: "/kelola-layanan" },
     ],
   },
   {
     title: "KONTEN",
     items: [
       { name: "Kelola Topeng", href: "/kelola-topeng" },
+      { name: "Kelola Layanan", href: "/kelola-layanan" },
       { name: "Kelola Galeri", href: "/kelola-galeri" },
       { name: "Kelola Artikel", href: "/kelola-artikel" },
       { name: "Kelola Pengumuman", href: "/kelola-pengumuman" },

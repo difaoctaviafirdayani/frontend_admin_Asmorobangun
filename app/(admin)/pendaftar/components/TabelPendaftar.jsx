@@ -81,7 +81,7 @@ export default function TabelPendaftar({
                       className="a-icon-btn"
                       aria-label="Lihat detail"
                       title="Lihat detail"
-                      onClick={() => onOpen(b)}
+                      onClick={() => onOpen(b, "info")}
                     >
                       <InfoIcon />
                     </button>
@@ -89,7 +89,7 @@ export default function TabelPendaftar({
                       className="a-icon-btn"
                       aria-label="Ubah status"
                       title="Ubah status"
-                      onClick={() => onOpen(b)}
+                      onClick={() => onOpen(b, "edit")}
                     >
                       <EditIcon />
                     </button>

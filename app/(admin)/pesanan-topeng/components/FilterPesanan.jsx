@@ -1,20 +1,20 @@
+"use client";
 import { ORDER_STATUS } from "@/lib/format";
+import CustomSelect from "../../pendaftar/components/CustomSelect";
 
 export default function FilterPesanan({ fStatus, onStatusChange }) {
   return (
     <div className="a-filters">
-      <select
-        className="a-select"
+      <CustomSelect
+        ariaLabel="Filter status"
         value={fStatus}
-        onChange={(e) => onStatusChange(e.target.value)}
-      >
-        <option value="">Semua Status</option>
-        {Object.entries(ORDER_STATUS).map(([k, v]) => (
-          <option key={k} value={k}>
-            {v}
-          </option>
-        ))}
-      </select>
+        onChange={onStatusChange}
+        minWidth={220}
+        options={[
+          { value: "", label: "Semua Status" },
+          ...Object.entries(ORDER_STATUS).map(([k, v]) => ({ value: k, label: String(v) })),
+        ]}
+      />
     </div>
   );
 }

@@ -77,7 +77,7 @@ export default function TabelPesanan({ rows, loading, error, onOpen }) {
                       className="a-icon-btn"
                       aria-label="Lihat detail"
                       title="Lihat detail"
-                      onClick={() => onOpen(o)}
+                      onClick={() => onOpen(o, "info")}
                     >
                       <InfoIcon />
                     </button>
@@ -85,7 +85,7 @@ export default function TabelPesanan({ rows, loading, error, onOpen }) {
                       className="a-icon-btn"
                       aria-label="Ubah status"
                       title="Ubah status"
-                      onClick={() => onOpen(o)}
+                      onClick={() => onOpen(o, "edit")}
                     >
                       <EditIcon />
                     </button>
