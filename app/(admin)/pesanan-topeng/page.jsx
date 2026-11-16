@@ -12,12 +12,19 @@ import TabelPesanan from "./components/TabelPesanan";
 
 // Tombol cepat di mode edit, mengikuti alur pesanan.
 const QUICK = [
-  { status: "dikonfirmasi", label: "Konfirmasi", cls: "ok" },
-  { status: "diproses", label: "Proses", cls: "done" },
+  { status: "diproses", label: "Bukti valid, proses", cls: "ok" },
   { status: "dikirim", label: "Kirim", cls: "done" },
   { status: "selesai", label: "Selesai", cls: "ok" },
-  { status: "ditolak", label: "Tolak", cls: "bad" },
+  { status: "dibatalkan", label: "Batalkan", cls: "bad" },
 ];
+
+/** Alamat kirim dalam satu blok teks (untuk ditempel ke label paket). */
+function fullAddress(sh) {
+  if (!sh) return "";
+  return [sh.address, sh.village && `Kel. ${sh.village}`, sh.district && `Kec. ${sh.district}`, sh.city, sh.province, sh.postalCode]
+    .filter(Boolean)
+    .join(", ");
+}
 
 export default function PesananTopengPage() {
   const toast = useToast();
@@ -26,6 +33,8 @@ export default function PesananTopengPage() {
   const [selected, setSelected] = useState(null);
   const [mode, setMode] = useState("info"); // "info" | "edit"
   const [newStatus, setNewStatus] = useState("");
+  const [courier, setCourier] = useState("");
+  const [tracking, setTracking] = useState("");
   const [saving, setSaving] = useState(false);
 
   const rows = (data?.orders || []).filter((o) => !fStatus || o.status === fStatus);
@@ -34,6 +43,8 @@ export default function PesananTopengPage() {
     setSelected(o);
     setMode(m);
     setNewStatus(o.status);
+    setCourier(o.courier || "");
+    setTracking(o.trackingNumber || "");
   }
 
   function close() {
@@ -42,9 +53,18 @@ export default function PesananTopengPage() {
 
   async function saveStatus() {
     if (!selected) return;
+    if (newStatus === "dikirim" && (!courier.trim() || !tracking.trim())) {
+      toast("Isi ekspedisi dan nomor resi dulu sebelum status Dikirim.");
+      return;
+    }
     setSaving(true);
     try {
-      await api(`/topeng/admin/orders/${selected.id}/status`, { method: "PATCH", body: { status: newStatus } });
+      const body = { status: newStatus };
+      if (newStatus === "dikirim") {
+        body.courier = courier.trim();
+        body.trackingNumber = tracking.trim();
+      }
+      await api(`/topeng/admin/orders/${selected.id}/status`, { method: "PATCH", body });
       toast("Status pesanan diperbarui.");
       close();
       reload();
@@ -55,8 +75,11 @@ export default function PesananTopengPage() {
     }
   }
 
+  const ship = selected?.shipping || null;
+  const needsResi = newStatus === "dikirim";
+  const resiChanged = needsResi && selected && (courier.trim() !== (selected.courier || "") || tracking.trim() !== (selected.trackingNumber || ""));
   const wa = selected
-    ? waLink(selected.buyerPhone, `Halo ${selected.userName}, terkait pesanan ${selected.topengName} di Sanggar Asmorobangun.`)
+    ? waLink(ship?.recipientPhone || selected.buyerPhone, `Halo ${selected.userName}, terkait pesanan ${selected.topengName} di Sanggar Asmorobangun.`)
     : "";
   const proofIsPdf = selected?.proofFile ? /\.pdf($|\?)/i.test(selected.proofFile) : false;
 
@@ -108,6 +131,29 @@ export default function PesananTopengPage() {
                 ["Pesan", selected.message],
               ]}
             />
+          </div>
+
+          <div className="a-info-section">
+            <div className="a-info-title">Alamat pengiriman</div>
+            {ship ? (
+              <DetailList
+                rows={[
+                  ["Penerima", ship.recipientName],
+                  ["No. HP penerima", ship.recipientPhone],
+                  ["Alamat lengkap", fullAddress(ship)],
+                ]}
+              />
+            ) : (
+              <div className="a-info-empty">Pesanan lama, belum ada alamat pengiriman.</div>
+            )}
+            {(selected.courier || selected.trackingNumber) && (
+              <DetailList
+                rows={[
+                  ["Ekspedisi", selected.courier],
+                  ["Nomor resi", selected.trackingNumber],
+                ]}
+              />
+            )}
           </div>
 
           <div className="a-info-section">
@@ -169,7 +215,7 @@ export default function PesananTopengPage() {
 
           <div className="a-info-section">
             <div className="a-info-title">Keputusan cepat</div>
-            <div className="a-quick a-quick-5">
+            <div className="a-quick" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
               {QUICK.map((q) => (
                 <button
                   key={q.status}
@@ -190,7 +236,26 @@ export default function PesananTopengPage() {
             </select>
           </div>
 
-          {newStatus !== selected.status && (
+          {needsResi && (
+            <div className="a-info-section">
+              <div className="a-info-title">Info pengiriman (tampil ke pembeli)</div>
+              {ship && (
+                <div className="a-info-sub" style={{ marginBottom: 8 }}>
+                  Kirim ke: {ship.recipientName} ({ship.recipientPhone}), {fullAddress(ship)}
+                </div>
+              )}
+              <div className="a-field">
+                <label htmlFor="kurir-pesanan">Ekspedisi</label>
+                <input id="kurir-pesanan" type="text" maxLength={80} placeholder="Contoh: JNE, J&T, SiCepat" value={courier} onChange={(e) => setCourier(e.target.value)} />
+              </div>
+              <div className="a-field">
+                <label htmlFor="resi-pesanan">Nomor resi</label>
+                <input id="resi-pesanan" type="text" maxLength={80} placeholder="Nomor resi dari ekspedisi" value={tracking} onChange={(e) => setTracking(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {(newStatus !== selected.status || resiChanged) && (
             <div className="a-change-note">
               Status akan berubah dari <strong>{ORDER_STATUS[selected.status] ?? selected.status}</strong> menjadi{" "}
               <strong>{ORDER_STATUS[newStatus] ?? newStatus}</strong>.
@@ -201,7 +266,7 @@ export default function PesananTopengPage() {
             {wa && <a className="a-btn a-btn-gold" href={wa} target="_blank" rel="noreferrer">WhatsApp pembeli</a>}
             <button className="a-btn a-btn-ghost" onClick={() => setMode("info")}>Lihat detail</button>
             <button className="a-btn a-btn-ghost" onClick={close}>Batal</button>
-            <button className="a-btn a-btn-primary" disabled={saving || newStatus === selected.status} onClick={saveStatus}>
+            <button className="a-btn a-btn-primary" disabled={saving || (newStatus === selected.status && !resiChanged)} onClick={saveStatus}>
               {saving ? "Menyimpan..." : "Simpan status"}
             </button>
           </div>

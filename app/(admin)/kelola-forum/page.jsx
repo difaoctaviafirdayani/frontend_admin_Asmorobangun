@@ -10,7 +10,15 @@ import TabelForum from "./components/TabelForum";
 
 const FIELDS = [
   { name: "title", label: "Judul", required: true },
-  { name: "category", label: "Kategori" },
+  {
+    name: "category",
+    label: "Kategori",
+    type: "select",
+    options: [
+      { value: "Umum", label: "Umum" },
+      { value: "Layanan", label: "Layanan" },
+    ],
+  },
   { name: "content", label: "Isi diskusi", type: "textarea", rows: 6, required: true },
 ];
 
@@ -28,9 +36,7 @@ export default function KelolaForumPage() {
   const [editing, setEditing] = useState(null);
   const [fKategori, setFKategori] = useState("");
 
-  const categories = Array.from(
-    new Set(forumList.map((r) => r.category).filter(Boolean))
-  );
+  const categories = ["Umum", "Layanan"];
   const tampil = fKategori
     ? forumList.filter((r) => r.category === fKategori)
     : forumList;

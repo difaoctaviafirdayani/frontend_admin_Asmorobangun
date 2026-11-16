@@ -1,3 +1,5 @@
+import { BOOKING_STATUS } from "@/lib/format";
+
 export default function PendaftarBaru({ data, formatDate }) {
   return (
     <section className="m-recent">
@@ -28,7 +30,7 @@ export default function PendaftarBaru({ data, formatDate }) {
                   <td>{r.name}</td>
                   <td>{r.facility}</td>
                   <td>{formatDate(r.date)}</td>
-                  <td>{r.status}</td>
+                  <td>{BOOKING_STATUS[r.status] ?? r.status}</td>
                 </tr>
               ))
             )}

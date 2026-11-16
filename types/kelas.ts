@@ -11,6 +11,10 @@ export interface Kelas {
   shortDesc: string;
   longDesc: string;
   priceInfo: string;
+  /** harga dalam rupiah (angka) */
+  price?: number | null;
+  /** hari buka, 1 = Senin ... 7 = Minggu; kosong = setiap hari */
+  availableDays?: number[];
   image: string;
   bookingType: string;
   avgRating: number | null;
@@ -29,7 +33,9 @@ export interface KelasReview {
 /** State form edit kelas */
 export interface KelasFormState {
   name: string;
+  price: string;
   priceInfo: string;
+  availableDays: number[];
   longDesc: string;
   image: string;
   cashOn: boolean;

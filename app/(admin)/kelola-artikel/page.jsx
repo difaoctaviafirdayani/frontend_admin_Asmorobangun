@@ -69,7 +69,7 @@ export default function KelolaArtikelPage() {
         <FormModal
           title={editing === "new" ? "Tulis artikel" : "Edit artikel"}
           fields={FIELDS}
-          initial={editing === "new" ? { category: "Berita" } : editing}
+          initial={editing === "new" ? { category: "Budaya" } : editing}
           onSubmit={simpan}
           onClose={() => setEditing(null)}
         />

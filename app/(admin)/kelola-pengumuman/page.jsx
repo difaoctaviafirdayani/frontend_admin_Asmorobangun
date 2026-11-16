@@ -9,7 +9,15 @@ import FormModal from "@/components/FormModal";
 
 const FIELDS = [
   { name: "title", label: "Judul", required: true },
-  { name: "type", label: "Kategori", placeholder: "Info Pertunjukan / Pendaftaran dibuka / Pencapaian" },
+  {
+    name: "type",
+    label: "Kategori",
+    type: "select",
+    options: [
+      { value: "Umum", label: "Umum" },
+      { value: "Layanan", label: "Layanan" },
+    ],
+  },
   {
     name: "color",
     label: "Warna label",
@@ -74,7 +82,7 @@ export default function KelolaPengumumanPage() {
           fields={FIELDS}
           initial={
             editing === "new"
-              ? { type: "Pengumuman", color: "brown" }
+              ? { type: "Umum", color: "brown" }
               : editing
           }
           onSubmit={simpan}

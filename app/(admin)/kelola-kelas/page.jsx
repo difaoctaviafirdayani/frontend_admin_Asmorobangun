@@ -3,7 +3,8 @@ import { useState } from "react";
 import { api, assetUrl } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
 import { formatDate, truncate, getErrorMessage } from "@/lib/format";
-import { buildKelasPayload, initialKelasForm, validateKelas } from "@/lib/kelas";
+import { HARI, buildKelasPayload, initialKelasForm, validateKelas } from "@/lib/kelas";
+import { formatRupiah } from "@/lib/format";
 import Modal from "@/components/Modal";
 import DetailList from "@/components/DetailList";
 import ImageField from "@/components/ImageField";
@@ -29,7 +30,7 @@ export default function KelolaKelasPage() {
                 <tr key={f.id}>
                   <td>{/* eslint-disable-next-line @next/next/no-img-element */}<img className="a-thumb" src={assetUrl(f.image)} alt="" onError={(e) => (e.target.style.visibility = "hidden")} /></td>
                   <td><strong>{f.name}</strong><div className="a-muted">{f.category}</div></td>
-                  <td>{truncate(f.priceInfo, 50)}</td>
+                  <td>{f.price ? <strong>{formatRupiah(f.price)}</strong> : <span className="a-muted">Belum diatur</span>}<div className="a-muted">{truncate(f.priceInfo, 50)}{Array.isArray(f.availableDays) && f.availableDays.length ? ` · ${f.availableDays.map((d) => HARI.find((h) => h.value === d)?.label).filter(Boolean).join(", ")}` : ""}</div></td>
                   <td>{f.avgRating ? <><Stars value={f.avgRating} /> <span className="a-muted">{f.avgRating} ({f.reviewCount})</span></> : <span className="a-muted">Belum ada</span>}</td>
                   <td>
                     <div className="a-actions">
@@ -76,7 +77,9 @@ function DetailModal({ facility: f, onClose, onChanged }) {
         rows={[
           ["Kategori", f.category],
           ["Jenis layanan", f.bookingType],
-          ["Harga", f.priceInfo],
+          ["Harga", f.price ? formatRupiah(f.price) : "Belum diatur"],
+          ["Keterangan harga", f.priceInfo],
+          ["Hari buka", Array.isArray(f.availableDays) && f.availableDays.length ? f.availableDays.map((d) => HARI.find((h) => h.value === d)?.label).filter(Boolean).join(", ") : "Setiap hari"],
           ["Deskripsi singkat", f.shortDesc],
           ["Deskripsi lengkap", f.longDesc],
         ]}
@@ -104,7 +107,6 @@ function DetailModal({ facility: f, onClose, onChanged }) {
 
 function EditModal({ facility: f, onClose, onSaved }) {
   const toast = useToast();
-  const isEvent = f.bookingType === "event"; // layanan event memakai penawaran admin, tanpa metode bayar
   const [form, setForm] = useState(() => initialKelasForm(f));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -127,7 +129,7 @@ function EditModal({ facility: f, onClose, onSaved }) {
     }
     setSaving(true);
     try {
-      await api(`/facilities/${f.id}`, { method: "PATCH", body: buildKelasPayload(form, isEvent) });
+      await api(`/facilities/${f.id}`, { method: "PATCH", body: buildKelasPayload(form) });
       toast("Fasilitas diperbarui.");
       onSaved();
     } catch (err) {
@@ -145,20 +147,45 @@ function EditModal({ facility: f, onClose, onSaved }) {
           <input value={form.name} onChange={(e) => setField("name", e.target.value)} />
           {errors.name && <div className="a-field-error">{errors.name}</div>}
         </div>
+        <div className={`a-field${errors.price ? " has-error" : ""}`}>
+          <label>Harga (Rp) *</label>
+          <div className="a-money">
+            <span>Rp</span>
+            <input type="number" inputMode="numeric" min={1} step={1} value={form.price} placeholder="0" onChange={(e) => setField("price", e.target.value)} />
+          </div>
+          <div className="a-field-hint">Semua layanan berbayar. Pengguna membayar sesuai harga ini (kelas wisata dikali jumlah peserta).</div>
+          {errors.price && <div className="a-field-error">{errors.price}</div>}
+        </div>
         <div className="a-field">
-          <label>Harga</label>
-          <input value={form.priceInfo} onChange={(e) => setField("priceInfo", e.target.value)} />
+          <label>Keterangan harga</label>
+          <input value={form.priceInfo} placeholder="Contoh: Rp 15.000 per orang" onChange={(e) => setField("priceInfo", e.target.value)} />
+        </div>
+        <div className="a-field">
+          <label>Hari buka</label>
+          <div className="a-method-box" style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            {HARI.map((h) => (
+              <label className="a-check-label" key={h.value}>
+                <input
+                  type="checkbox"
+                  checked={form.availableDays.includes(h.value)}
+                  onChange={(e) =>
+                    setField(
+                      "availableDays",
+                      e.target.checked ? [...form.availableDays, h.value] : form.availableDays.filter((d) => d !== h.value)
+                    )
+                  }
+                />{" "}
+                {h.label}
+              </label>
+            ))}
+          </div>
+          <div className="a-field-hint">Kosongkan jika layanan buka setiap hari. Contoh: kelas tari wisata hanya Sabtu, karawitan hanya Minggu. Pengguna hanya bisa memilih tanggal pada hari yang dicentang.</div>
         </div>
         <div className="a-field">
           <label>Deskripsi</label>
           <textarea rows={4} value={form.longDesc} onChange={(e) => setField("longDesc", e.target.value)} />
         </div>
 
-        {isEvent ? (
-          <div className="a-field-hint" style={{ marginBottom: 12 }}>
-            Layanan ini belum memakai pembayaran di muka (melalui penawaran admin), jadi tidak ada pengaturan metode pembayaran.
-          </div>
-        ) : (
           <div className="a-field">
             <label>Metode pembayaran</label>
             <div className="a-method-box">
@@ -175,7 +202,6 @@ function EditModal({ facility: f, onClose, onSaved }) {
               <ImageField label="Gambar QRIS merchant" value={form.qrisImg} onChange={(v) => setField("qrisImg", v)} />
             </div>
           </div>
-        )}
 
         <ImageField label="Gambar layanan" value={form.image} onChange={(v) => setField("image", v)} />
         <div className="a-modal-foot">

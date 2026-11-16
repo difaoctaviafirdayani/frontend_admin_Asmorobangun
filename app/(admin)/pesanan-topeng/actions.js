@@ -5,17 +5,10 @@ import { requireAdminInAction } from "@/lib/admin-guard";
 import { serverApi } from "@/lib/server-api";
 
 // Daftar status yang diterima backend-mu.
-const ALLOWED_STATUS = [
-  "menunggu_konfirmasi_admin",
-  "menunggu_verifikasi",
-  "dikonfirmasi",
-  "diproses",
-  "dikirim",
-  "selesai",
-  "ditolak",
-];
+const ALLOWED_STATUS = ["menunggu_pembayaran", "menunggu_verifikasi", "diproses", "dikirim", "selesai", "dibatalkan"];
 
-export async function updateOrderStatusAction(orderId, status) {
+// shipping = { courier, trackingNumber } (wajib saat status "dikirim")
+export async function updateOrderStatusAction(orderId, status, shipping = {}) {
   // 1) Cek role DI DALAM action (bukan hanya di layout/proxy)
   const guard = await requireAdminInAction();
   if (!guard.ok) {
@@ -30,7 +23,11 @@ export async function updateOrderStatusAction(orderId, status) {
   // 3) Backend tetap memeriksa lagi lewat requireAdmin
   const res = await serverApi(`/topeng/admin/orders/${encodeURIComponent(orderId)}/status`, {
     method: "PATCH",
-    body: { status },
+    body: {
+      status,
+      courier: String(shipping.courier ?? "").trim(),
+      trackingNumber: String(shipping.trackingNumber ?? "").trim(),
+    },
   });
 
   if (res.status === 404) return { success: false, error: "NOT_FOUND", message: "Pesanan tidak ditemukan." };

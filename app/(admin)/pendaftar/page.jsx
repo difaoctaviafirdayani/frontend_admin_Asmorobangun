@@ -1,8 +1,8 @@
 "use client";
 import { useState } from "react";
-import { api } from "@/lib/api";
+import { api, fileUrl } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
-import { BOOKING_STATUS, formatRupiah } from "@/lib/format";
+import { BOOKING_STATUS, PAYMENT_LABEL, formatDate, formatRupiah } from "@/lib/format";
 import Modal from "@/components/Modal";
 import DetailList from "@/components/DetailList";
 import { useToast } from "@/components/Toast";
@@ -70,11 +70,23 @@ export default function PendaftarPage() {
             rows={[
               ["Nama", selected.userName],
               ["Layanan", selected.facilityName],
-              ["Tanggal", selected.date],
+              ["Tanggal kunjungan", selected.date ? formatDate(selected.date) : null],
+              ["Jumlah peserta", selected.guestCount],
               ["Nominal", selected.amount ? formatRupiah(selected.amount) : null],
+              ["Metode bayar", selected.paymentMethod ? PAYMENT_LABEL[selected.paymentMethod] ?? selected.paymentMethod : "Belum dipilih"],
+              ["Catatan", selected.notes],
               ["Status", BOOKING_STATUS[selected.status] ?? selected.status],
             ]}
           />
+          {selected.proofFile ? (
+            <a className="a-btn a-btn-ghost a-btn-sm" href={fileUrl(selected.proofFile)} target="_blank" rel="noreferrer">
+              Buka bukti bayar
+            </a>
+          ) : (
+            <div className="a-info-empty">
+              {selected.paymentMethod === "cash" ? "Tunai: dibayar langsung di sanggar." : "Bukti bayar belum diunggah."}
+            </div>
+          )}
           <div className="a-modal-foot">
             <button className="a-btn a-btn-ghost" onClick={close}>Tutup</button>
             <button className="a-btn a-btn-primary" onClick={() => setMode("edit")}>Ubah status</button>
@@ -84,6 +96,10 @@ export default function PendaftarPage() {
 
       {selected && mode === "edit" && (
         <Modal title="Ubah status pendaftar" onClose={close}>
+          <div className="a-info-sub" style={{ marginBottom: 8 }}>
+            {selected.userName} · {selected.facilityName}. Setelah bukti bayar dicek dan valid, ubah ke &quot;Menunggu Kedatangan&quot;.
+            Ubah ke &quot;Selesai&quot; setelah peserta datang atau kostum dikembalikan.
+          </div>
           <div className="a-field">
             <label htmlFor="status-pendaftar">Status</label>
             <select id="status-pendaftar" value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>

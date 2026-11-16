@@ -2,13 +2,15 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
+import { formatRupiah } from "@/lib/format";
 import { toLayananView } from "@/lib/layanan";
 import { useToast } from "@/components/Toast";
 import FormModal from "@/components/FormModal";
 
 const FIELDS = [
   { name: "name", label: "Nama layanan", required: true },
-  { name: "priceInfo", label: "Harga", placeholder: "Contoh: Rp 15.000/kunjungan" },
+  { name: "price", label: "Harga (Rp)", required: true, money: true },
+  { name: "priceInfo", label: "Keterangan harga", placeholder: "Contoh: Rp 15.000 per orang" },
   { name: "shortDesc", label: "Deskripsi singkat", type: "textarea", rows: 3 },
   { name: "longDesc", label: "Deskripsi lengkap", type: "textarea", rows: 6 },
   { name: "image", label: "Foto layanan", type: "image" },
@@ -117,7 +119,7 @@ export default function KelolaLayananPage() {
               {layananList.map((row) => (
                 <tr key={row.id} style={{ borderBottom: "1px solid #E6D8C3" }}>
                   <td style={{ padding: "16px 20px", fontWeight: "600", color: "#3A2A1A", verticalAlign: "middle" }}>{row.name}</td>
-                  <td style={{ padding: "16px 20px", color: "#5A4A3A", verticalAlign: "middle" }}>{row.price}</td>
+                  <td style={{ padding: "16px 20px", color: "#5A4A3A", verticalAlign: "middle" }}>{row.price ? formatRupiah(row.price) : "-"}{row.priceText ? ` (${row.priceText})` : ""}</td>
                   <td style={{ padding: "16px 20px", color: "#6A5A4A", maxWidth: "350px", verticalAlign: "middle", lineHeight: "1.5" }}>{row.description}</td>
                   <td style={{ padding: "16px 20px", textAlign: "center", verticalAlign: "middle" }}>
                     <div style={{ display: "flex", gap: "10px", justifyContent: "center", alignItems: "center" }}>

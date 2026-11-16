@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api, getAdmin } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
+import { BOOKING_STATUS } from "@/lib/format";
 
 const Icon = ({ children }) => (
   <svg
@@ -152,7 +153,7 @@ export default function DashboardPage() {
                     <td>{r.name}</td>
                     <td>{r.facility}</td>
                     <td>{formatDate(r.date)}</td>
-                    <td>{r.status}</td>
+                    <td>{BOOKING_STATUS[r.status] ?? r.status}</td>
                   </tr>
                 ))
               )}
