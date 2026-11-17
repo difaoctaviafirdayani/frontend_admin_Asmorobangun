@@ -18,7 +18,7 @@ const FIELDS = [
 export default function KelolaGaleriPage() {
   const toast = useToast();
   const { data, error, reload } = useLoad(() => api("/gallery"));
-  const galeriList = (data?.gallery ?? []).map(toGaleriView);
+  const galeriList = (Array.isArray(data) ? data : data?.gallery ?? []).map(toGaleriView);
   const [editing, setEditing] = useState(null);
 
   async function handleDelete(id) {
@@ -92,9 +92,9 @@ export default function KelolaGaleriPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, 380px)",
+          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
           justifyContent: "center",
-          gap: "24px",
+          gap: "16px",
         }}
       >
         {galeriList.map((item) => (
@@ -116,7 +116,7 @@ export default function KelolaGaleriPage() {
                 style={{
                   position: "relative",
                   width: "100%",
-                  height: "200px",
+                  height: "150px",
                   borderRadius: "12px",
                   overflow: "hidden",
                   marginBottom: "16px",

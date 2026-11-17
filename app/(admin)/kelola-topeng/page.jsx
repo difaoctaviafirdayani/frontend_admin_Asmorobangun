@@ -273,7 +273,7 @@ function ConfirmDialog({
 export default function KelolaTopengPage() {
   const toast = useToast();
   const { data, error, reload } = useLoad(() => api("/topeng"));
-  const topengList = data?.topeng || [];
+  const topengList = Array.isArray(data) ? data : data?.topeng || [];
   const [editing, setEditing] = useState(null);
   const [popup, setPopup] = useState(null); // { type: "success" | "error", title, message } atau null
   const [preview, setPreview] = useState(null); // { url, alt } atau null
