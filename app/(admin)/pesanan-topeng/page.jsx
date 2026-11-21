@@ -2,10 +2,11 @@
 import { useState } from "react";
 import { api, assetUrl, fileUrl } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
-import { ORDER_STATUS, PAYMENT_LABEL, formatDateTime, formatRupiah, waLink } from "@/lib/format";
+import { ORDER_STATUS, PAYMENT_LABEL, cancelInfo, formatDateTime, formatRupiah, waLink } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import Modal from "@/components/Modal";
 import DetailList from "@/components/DetailList";
+import CancelInfoBox from "@/components/CancelInfoBox";
 import { useToast } from "@/components/Toast";
 import FilterPesanan from "./FilterPesanan";
 import TabelPesanan from "./TabelPesanan";
@@ -81,6 +82,7 @@ export default function PesananTopengPage() {
   const wa = selected
     ? waLink(ship?.recipientPhone || selected.buyerPhone, `Halo ${selected.userName}, terkait pesanan ${selected.topengName} di Sanggar Asmorobangun.`)
     : "";
+  const lockedByUser = !!cancelInfo(selected || {})?.byUser;
   const proofIsPdf = selected?.proofFile ? /\.pdf($|\?)/i.test(selected.proofFile) : false;
 
   return (
@@ -106,6 +108,8 @@ export default function PesananTopengPage() {
             </div>
             <StatusBadge status={selected.status} labels={ORDER_STATUS} />
           </div>
+
+          <CancelInfoBox item={selected} nama={selected.topengName} phone={selected.buyerPhone || ship?.recipientPhone} />
 
           <div className="a-info-section">
             <div className="a-info-title">Pemesan</div>
@@ -194,13 +198,24 @@ export default function PesananTopengPage() {
           <div className="a-modal-foot">
             {wa && <a className="a-btn a-btn-gold" href={wa} target="_blank" rel="noreferrer">WhatsApp pembeli</a>}
             <button className="a-btn a-btn-ghost" onClick={close}>Tutup</button>
-            <button className="a-btn a-btn-primary" onClick={() => setMode("edit")}>Ubah status</button>
+            {!lockedByUser && <button className="a-btn a-btn-primary" onClick={() => setMode("edit")}>Ubah status</button>}
           </div>
         </Modal>
       )}
 
       {/* ========== MODE EDIT: fokus mengambil keputusan ========== */}
-      {selected && mode === "edit" && (
+      {selected && mode === "edit" && lockedByUser && (
+        <Modal title="Ubah status pesanan" onClose={close}>
+          <div className="a-change-note">Pesanan ini sudah dibatalkan oleh pembeli, jadi statusnya tidak bisa diubah lagi.</div>
+          <CancelInfoBox item={selected} nama={selected.topengName} phone={selected.buyerPhone || ship?.recipientPhone} />
+          <div className="a-modal-foot">
+            <button className="a-btn a-btn-ghost" onClick={() => setMode("info")}>Lihat detail</button>
+            <button className="a-btn a-btn-ghost" onClick={close}>Tutup</button>
+          </div>
+        </Modal>
+      )}
+
+      {selected && mode === "edit" && !lockedByUser && (
         <Modal title="Ubah status pesanan" onClose={close}>
           <div className="a-info-head">
             <div style={{ flex: 1 }}>

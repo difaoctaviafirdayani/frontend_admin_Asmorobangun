@@ -158,7 +158,7 @@ function EditModal({ facility: f, onClose, onSaved }) {
         </div>
         <div className="a-field">
           <label>Keterangan harga</label>
-          <input value={form.priceInfo} placeholder="Contoh: Rp 15.000 per orang" onChange={(e) => setField("priceInfo", e.target.value)} />
+          <input value={form.priceInfo} placeholder="Opsional. Kosongkan untuk otomatis memakai harga. Contoh: Rp 15.000 per orang" onChange={(e) => setField("priceInfo", e.target.value)} />
         </div>
         <div className="a-field">
           <label>Hari buka</label>

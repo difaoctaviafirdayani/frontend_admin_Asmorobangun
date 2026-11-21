@@ -1,4 +1,4 @@
-import { BOOKING_STATUS, formatDate, formatRupiah } from "@/lib/format";
+import { BOOKING_STATUS, cancelInfo, formatDate, formatRupiah } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 
 function InfoIcon() {
@@ -74,6 +74,7 @@ export default function TabelPendaftar({
                 <td>{b.amount ? formatRupiah(b.amount) : "-"}</td>
                 <td>
                   <StatusBadge status={b.status} labels={BOOKING_STATUS} />
+                  {cancelInfo(b)?.byUser && <div className="a-info-sub">oleh pendaftar{cancelInfo(b).needsRefund ? " · perlu refund" : ""}</div>}
                 </td>
                 <td>
                   <div className="a-icons">

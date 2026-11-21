@@ -2,9 +2,10 @@
 import { useState } from "react";
 import { api, fileUrl } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
-import { BOOKING_STATUS, PAYMENT_LABEL, formatDate, formatRupiah } from "@/lib/format";
+import { BOOKING_STATUS, PAYMENT_LABEL, cancelInfo, formatDate, formatRupiah, waLink } from "@/lib/format";
 import Modal from "@/components/Modal";
 import DetailList from "@/components/DetailList";
+import CancelInfoBox from "@/components/CancelInfoBox";
 import { useToast } from "@/components/Toast";
 import FilterPendaftar from "./FilterPendaftar";
 import TabelPendaftar from "./TabelPendaftar";
@@ -50,6 +51,11 @@ export default function PendaftarPage() {
     }
   }
 
+  const lockedByUser = !!cancelInfo(selected || {})?.byUser;
+  const wa = selected
+    ? waLink(selected.userPhone, `Halo ${selected.userName}, terkait pendaftaran ${selected.facilityName} di Sanggar Asmorobangun.`)
+    : "";
+
   return (
     <div className="a-page">
       <h1 className="a-heading">Pendaftar &amp; Booking</h1>
@@ -75,9 +81,11 @@ export default function PendaftarPage() {
               ["Nominal", selected.amount ? formatRupiah(selected.amount) : null],
               ["Metode bayar", selected.paymentMethod ? PAYMENT_LABEL[selected.paymentMethod] ?? selected.paymentMethod : "Belum dipilih"],
               ["Catatan", selected.notes],
+              ["No. HP", selected.userPhone],
               ["Status", BOOKING_STATUS[selected.status] ?? selected.status],
             ]}
           />
+          <CancelInfoBox item={selected} nama={selected.facilityName} phone={selected.userPhone} />
           {selected.proofFile ? (
             <a className="a-btn a-btn-ghost a-btn-sm" href={fileUrl(selected.proofFile)} target="_blank" rel="noreferrer">
               Buka bukti bayar
@@ -88,13 +96,25 @@ export default function PendaftarPage() {
             </div>
           )}
           <div className="a-modal-foot">
+            {wa && <a className="a-btn a-btn-gold" href={wa} target="_blank" rel="noreferrer">WhatsApp pendaftar</a>}
             <button className="a-btn a-btn-ghost" onClick={close}>Tutup</button>
-            <button className="a-btn a-btn-primary" onClick={() => setMode("edit")}>Ubah status</button>
+            {!lockedByUser && <button className="a-btn a-btn-primary" onClick={() => setMode("edit")}>Ubah status</button>}
           </div>
         </Modal>
       )}
 
-      {selected && mode === "edit" && (
+      {selected && mode === "edit" && lockedByUser && (
+        <Modal title="Ubah status pendaftar" onClose={close}>
+          <div className="a-change-note">Pendaftaran ini sudah dibatalkan oleh pendaftar, jadi statusnya tidak bisa diubah lagi.</div>
+          <CancelInfoBox item={selected} nama={selected.facilityName} phone={selected.userPhone} />
+          <div className="a-modal-foot">
+            <button className="a-btn a-btn-ghost" onClick={() => setMode("info")}>Lihat detail</button>
+            <button className="a-btn a-btn-ghost" onClick={close}>Tutup</button>
+          </div>
+        </Modal>
+      )}
+
+      {selected && mode === "edit" && !lockedByUser && (
         <Modal title="Ubah status pendaftar" onClose={close}>
           <div className="a-info-sub" style={{ marginBottom: 8 }}>
             {selected.userName} · {selected.facilityName}. Setelah bukti bayar dicek dan valid, ubah ke &quot;Menunggu Kedatangan&quot;.

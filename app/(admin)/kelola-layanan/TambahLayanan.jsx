@@ -6,7 +6,7 @@ import FormModal from "@/components/FormModal";
 const FIELDS = [
   { name: "name", label: "Nama layanan", required: true },
   { name: "price", label: "Harga (Rp)", required: true, money: true },
-  { name: "priceInfo", label: "Keterangan harga", placeholder: "Contoh: Rp 15.000 per orang" },
+  { name: "priceInfo", label: "Keterangan harga", placeholder: "Opsional. Kosongkan untuk otomatis memakai harga di atas. Contoh: Rp 15.000 per orang" },
   { name: "shortDesc", label: "Deskripsi singkat", type: "textarea", rows: 3 },
   { name: "longDesc", label: "Deskripsi lengkap", type: "textarea", rows: 6 },
   { name: "image", label: "Foto layanan", type: "image" },

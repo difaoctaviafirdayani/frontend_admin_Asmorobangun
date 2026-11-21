@@ -1,4 +1,4 @@
-import { ORDER_STATUS } from "@/lib/format";
+import { ORDER_STATUS, cancelInfo } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 
 // Figma menampilkan tanggal sebagai dd/mm/yyyy
@@ -70,6 +70,7 @@ export default function TabelPesanan({ rows, loading, error, onOpen }) {
                 <td>{tanggal(o.createdAt)}</td>
                 <td>
                   <StatusBadge status={o.status} labels={ORDER_STATUS} />
+                  {cancelInfo(o)?.byUser && <div className="a-info-sub">oleh pembeli{cancelInfo(o).needsRefund ? " · perlu refund" : ""}</div>}
                 </td>
                 <td>
                   <div className="a-icons">
