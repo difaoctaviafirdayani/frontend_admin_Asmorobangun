@@ -1,6 +1,6 @@
 "use client";
 import { ORDER_STATUS } from "@/lib/format";
-import CustomSelect from "../../pendaftar/components/CustomSelect";
+import CustomSelect from "@/components/CustomSelect";
 
 export default function FilterPesanan({ fStatus, onStatusChange }) {
   return (

@@ -1,5 +1,5 @@
 import { BOOKING_STATUS } from "@/lib/format";
-import CustomSelect from "./CustomSelect";
+import CustomSelect from "@/components/CustomSelect";
 
 export default function FilterPendaftar({
   facilities,

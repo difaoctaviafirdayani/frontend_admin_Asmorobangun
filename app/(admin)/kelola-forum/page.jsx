@@ -3,27 +3,12 @@ import { useState } from "react";
 import { formatDate } from "@/lib/format";
 import { api } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
-import { useToast } from "@/components/Toast";
-import FormModal from "@/components/FormModal";
-import FilterForum from "./components/FilterForum";
-import TabelForum from "./components/TabelForum";
+import FilterForum from "./FilterForum";
+import TabelForum from "./TabelForum";
 
-const FIELDS = [
-  { name: "title", label: "Judul", required: true },
-  {
-    name: "category",
-    label: "Kategori",
-    type: "select",
-    options: [
-      { value: "Umum", label: "Umum" },
-      { value: "Layanan", label: "Layanan" },
-    ],
-  },
-  { name: "content", label: "Isi diskusi", type: "textarea", rows: 6, required: true },
-];
+const CATEGORIES = ["Umum", "Layanan"];
 
 export default function KelolaForumPage() {
-  const toast = useToast();
   const { data, error, reload } = useLoad(() => api("/forum"));
   const forumList = (data?.threads || []).map((t) => ({
     id: t.id,
@@ -33,42 +18,8 @@ export default function KelolaForumPage() {
     date: formatDate(t.date),
   }));
 
-  const [editing, setEditing] = useState(null);
   const [fKategori, setFKategori] = useState("");
-
-  const categories = ["Umum", "Layanan"];
-  const tampil = fKategori
-    ? forumList.filter((r) => r.category === fKategori)
-    : forumList;
-
-  // ambil isi lengkap diskusi dulu (daftar hanya berisi ringkasan)
-  async function bukaEdit(row) {
-    try {
-      const res = await api(`/forum/${row.id}`);
-      setEditing(res.thread);
-    } catch (err) {
-      toast(err.message);
-    }
-  }
-
-  async function simpan(values) {
-    if (!editing) return;
-    await api(`/forum/${editing.id}`, { method: "PATCH", body: values });
-    toast("Diskusi diperbarui.");
-    setEditing(null);
-    reload();
-  }
-
-  async function hapus(row) {
-    if (!confirm(`Hapus diskusi "${row.topic}" beserta semua balasannya?`)) return;
-    try {
-      await api(`/forum/${row.id}`, { method: "DELETE" });
-      toast("Diskusi dihapus.");
-      reload();
-    } catch (err) {
-      toast(err.message);
-    }
-  }
+  const tampil = fKategori ? forumList.filter((r) => r.category === fKategori) : forumList;
 
   return (
     <div style={{ padding: "24px", maxWidth: "100%", margin: "0 auto" }}>
@@ -86,23 +37,9 @@ export default function KelolaForumPage() {
 
       {error && <div style={{ color: "#A84C4C", marginBottom: "12px", fontSize: "14px" }}>{error}</div>}
 
-      {editing && (
-        <FormModal
-          title="Moderasi diskusi"
-          fields={FIELDS}
-          initial={editing}
-          onSubmit={simpan}
-          onClose={() => setEditing(null)}
-        />
-      )}
+      <FilterForum categories={CATEGORIES} fKategori={fKategori} onKategoriChange={setFKategori} />
 
-      <FilterForum
-        categories={categories}
-        fKategori={fKategori}
-        onKategoriChange={setFKategori}
-      />
-
-      <TabelForum rows={tampil} onEdit={bukaEdit} onHapus={hapus} />
+      <TabelForum rows={tampil} onChanged={reload} />
     </div>
   );
 }

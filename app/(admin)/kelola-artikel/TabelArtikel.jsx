@@ -1,13 +1,9 @@
-import { truncate } from "@/lib/format";
+"use client";
+import { truncate, getErrorMessage } from "@/lib/format";
+import { api } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 
-const TH = {
-  padding: "16px 20px",
-  fontWeight: "700",
-  fontSize: "14px",
-  letterSpacing: "0.5px",
-};
-
-const TD = { padding: "16px 20px", color: "#5A4A3A", verticalAlign: "middle" };
+const TH = { padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" };
 
 const ICON_BTN = {
   width: "32px",
@@ -22,7 +18,20 @@ const ICON_BTN = {
   color: "#3A2A1A",
 };
 
-export default function TabelForum({ rows, onEdit, onHapus }) {
+export default function TabelArtikel({ list, onEdit, onChanged }) {
+  const toast = useToast();
+
+  async function hapus(row) {
+    if (!confirm(`Hapus artikel "${row.title}"?`)) return;
+    try {
+      await api(`/articles/${row.id}`, { method: "DELETE" });
+      toast("Artikel dihapus.");
+      onChanged();
+    } catch (err) {
+      toast(getErrorMessage(err));
+    }
+  }
+
   return (
     <div
       style={{
@@ -36,30 +45,21 @@ export default function TabelForum({ rows, onEdit, onHapus }) {
         <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
           <thead>
             <tr style={{ borderBottom: "1.5px solid #D4BBA5", color: "#3A2A1A" }}>
-              <th style={TH}>TOPIK</th>
+              <th style={TH}>JUDUL</th>
               <th style={TH}>KATEGORI</th>
-              <th style={TH}>USERNAME</th>
               <th style={TH}>TANGGAL</th>
               <th style={{ ...TH, textAlign: "center" }}>AKSI</th>
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={5} style={{ padding: "24px 20px", color: "#7A6A5A", textAlign: "center" }}>
-                  Belum ada diskusi.
-                </td>
-              </tr>
-            )}
-            {rows.map((row) => (
+            {list.map((row) => (
               <tr key={row.id} style={{ borderBottom: "1px solid #E6D8C3" }}>
-                <td style={{ ...TD, color: "#3A2A1A", maxWidth: "250px" }}>
-                  {truncate(row.topic, 50)}
+                <td style={{ padding: "16px 20px", color: "#3A2A1A", verticalAlign: "middle", maxWidth: "380px", lineHeight: "1.5" }}>
+                  {truncate(row.title, 80)}
                 </td>
-                <td style={TD}>{row.category}</td>
-                <td style={TD}>{row.username}</td>
-                <td style={TD}>{row.date}</td>
-                <td style={{ ...TD, textAlign: "center" }}>
+                <td style={{ padding: "16px 20px", color: "#5A4A3A", verticalAlign: "middle" }}>{row.category}</td>
+                <td style={{ padding: "16px 20px", color: "#5A4A3A", verticalAlign: "middle" }}>{row.date}</td>
+                <td style={{ padding: "16px 20px", textAlign: "center", verticalAlign: "middle" }}>
                   <div style={{ display: "flex", gap: "10px", justifyContent: "center", alignItems: "center" }}>
                     <button type="button" onClick={() => onEdit(row)} title="Edit" style={ICON_BTN}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -68,7 +68,7 @@ export default function TabelForum({ rows, onEdit, onHapus }) {
                       </svg>
                     </button>
 
-                    <button type="button" onClick={() => onHapus(row)} title="Hapus" style={ICON_BTN}>
+                    <button type="button" onClick={() => hapus(row)} title="Hapus" style={ICON_BTN}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>

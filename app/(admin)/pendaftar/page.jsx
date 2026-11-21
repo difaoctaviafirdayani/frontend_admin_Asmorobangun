@@ -6,8 +6,8 @@ import { BOOKING_STATUS, PAYMENT_LABEL, formatDate, formatRupiah } from "@/lib/f
 import Modal from "@/components/Modal";
 import DetailList from "@/components/DetailList";
 import { useToast } from "@/components/Toast";
-import FilterPendaftar from "./components/FilterPendaftar";
-import TabelPendaftar from "./components/TabelPendaftar";
+import FilterPendaftar from "./FilterPendaftar";
+import TabelPendaftar from "./TabelPendaftar";
 
 export default function PendaftarPage() {
   const toast = useToast();

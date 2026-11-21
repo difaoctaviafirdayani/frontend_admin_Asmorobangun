@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-/** Dropdown bertema coklat sebagai pengganti <select> bawaan browser (yang daftarnya biru & tidak bisa di-style). */
 export default function CustomSelect({ value, options, onChange, ariaLabel, minWidth = 220 }) {
   const [open, setOpen] = useState(false);
   const [hover, setHover] = useState(null);
@@ -9,7 +8,6 @@ export default function CustomSelect({ value, options, onChange, ariaLabel, minW
 
   const selected = options.find((o) => o.value === value) ?? options[0];
 
-  // Tutup kalau klik di luar atau tekan Esc
   useEffect(() => {
     if (!open) return;
     function onDown(e) {

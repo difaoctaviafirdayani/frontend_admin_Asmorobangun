@@ -7,8 +7,8 @@ import StatusBadge from "@/components/StatusBadge";
 import Modal from "@/components/Modal";
 import DetailList from "@/components/DetailList";
 import { useToast } from "@/components/Toast";
-import FilterPesanan from "./components/FilterPesanan";
-import TabelPesanan from "./components/TabelPesanan";
+import FilterPesanan from "./FilterPesanan";
+import TabelPesanan from "./TabelPesanan";
 
 // Tombol cepat di mode edit, mengikuti alur pesanan.
 const QUICK = [
