@@ -24,6 +24,37 @@ const FIELDS = [
 export default function TabelForum({ rows, onChanged }) {
   const toast = useToast();
   const [editing, setEditing] = useState(null);
+  const [analisis, setAnalisis] = useState(null); // hasil analisis AI yang sedang dibuka
+  const [loadingId, setLoadingId] = useState(null);
+  const [menyimpan, setMenyimpan] = useState(false);
+
+  // minta AI menganalisis satu diskusi (khusus admin), lalu tampilkan hasilnya
+  async function analisisAI(row) {
+    setLoadingId(row.id);
+    try {
+      const res = await api(`/ai/analyze/thread/${row.id}`, { method: "POST" });
+      setAnalisis(res);
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
+  // admin menyetujui / menolak hasil AI
+  async function verifikasi(status) {
+    if (!analisis) return;
+    setMenyimpan(true);
+    try {
+      const res = await api(`/ai/results/${analisis.id}/verify`, { method: "PATCH", body: { status } });
+      setAnalisis(res);
+      toast(status === "approved" ? "Hasil analisis disetujui." : "Hasil analisis ditolak.");
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      setMenyimpan(false);
+    }
+  }
 
   // ambil isi lengkap diskusi dulu (daftar hanya berisi ringkasan)
   async function bukaEdit(row) {
@@ -95,6 +126,24 @@ export default function TabelForum({ rows, onChanged }) {
                     <div style={{ display: "flex", gap: "8px", justifyContent: "center", alignItems: "center" }}>
                       <button
                         type="button"
+                        onClick={() => analisisAI(row)}
+                        disabled={loadingId === row.id}
+                        style={{
+                          backgroundColor: "#5A7A4C",
+                          color: "#FFFFFF",
+                          border: "none",
+                          padding: "6px 14px",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          fontWeight: "500",
+                          cursor: loadingId === row.id ? "wait" : "pointer",
+                          opacity: loadingId === row.id ? 0.7 : 1,
+                        }}
+                      >
+                        {loadingId === row.id ? "Menganalisis..." : "Analisis AI"}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => bukaEdit(row)}
                         style={{
                           backgroundColor: "#E6DCC9",
@@ -134,6 +183,15 @@ export default function TabelForum({ rows, onChanged }) {
         </div>
       </div>
 
+      {analisis && (
+        <HasilAnalisis
+          hasil={analisis}
+          menyimpan={menyimpan}
+          onVerifikasi={verifikasi}
+          onClose={() => setAnalisis(null)}
+        />
+      )}
+
       {editing && (
         <FormModal
           title="Moderasi diskusi"
@@ -144,5 +202,115 @@ export default function TabelForum({ rows, onChanged }) {
         />
       )}
     </>
+  );
+}
+
+const STATUS_LABEL = {
+  pending: "Menunggu verifikasi admin",
+  approved: "Disetujui",
+  rejected: "Ditolak",
+  blocked: "Diblokir (terdeteksi prompt injection)",
+};
+const BARIS = [
+  ["Sentimen", (o) => o.sentiment],
+  ["Topik", (o) => String(o.topic).replace("_", " ")],
+  ["Tingkat risiko", (o) => o.risk_level],
+  ["Perlu dibalas admin", (o) => (o.needs_admin_reply ? "Ya" : "Tidak")],
+  ["Keyakinan AI", (o) => `${Math.round(o.confidence * 100)}%`],
+];
+
+function HasilAnalisis({ hasil, menyimpan, onVerifikasi, onClose }) {
+  const o = hasil.output;
+  const btn = { border: "none", padding: "8px 18px", borderRadius: "6px", fontSize: "14px", cursor: "pointer" };
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(58,42,26,0.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px",
+        zIndex: 1000,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: "#FDFCEA",
+          border: "1.5px solid #D4BBA5",
+          borderRadius: "12px",
+          padding: "24px",
+          width: "100%",
+          maxWidth: "520px",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          color: "#3A2A1A",
+        }}
+      >
+        <h2 style={{ fontSize: "22px", fontWeight: "normal", marginBottom: "4px" }}>Analisis AI</h2>
+        <p style={{ color: "#7A6A5A", fontSize: "13px", marginBottom: "16px" }}>
+          {hasil.sourceTitle} · Status: <strong>{STATUS_LABEL[hasil.status] || hasil.status}</strong>
+        </p>
+
+        {o ? (
+          <>
+            <p style={{ marginBottom: "16px", lineHeight: 1.5 }}>
+              <strong>Ringkasan:</strong> {o.summary}
+            </p>
+            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "12px" }}>
+              <tbody>
+                {BARIS.map(([label, ambil]) => (
+                  <tr key={label} style={{ borderBottom: "1px solid #E6D8C3" }}>
+                    <td style={{ padding: "8px 0", color: "#7A6A5A", width: "45%" }}>{label}</td>
+                    <td style={{ padding: "8px 0", textTransform: "capitalize" }}>{ambil(o)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p style={{ color: "#7A6A5A", fontSize: "12px", marginBottom: "16px" }}>
+              Hasil ini dibuat AI dan bisa saja keliru. Periksa dulu sebelum disetujui.
+            </p>
+          </>
+        ) : (
+          <p style={{ marginBottom: "16px", lineHeight: 1.5 }}>
+            Diskusi ini tidak dikirim ke AI.
+            {hasil.blockedReason ? ` Alasan: ${hasil.blockedReason}` : ""}
+          </p>
+        )}
+
+        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", flexWrap: "wrap" }}>
+          {hasil.status === "pending" && (
+            <>
+              <button
+                type="button"
+                disabled={menyimpan}
+                onClick={() => onVerifikasi("rejected")}
+                style={{ ...btn, backgroundColor: "#A84C4C", color: "#FFFFFF" }}
+              >
+                Tolak
+              </button>
+              <button
+                type="button"
+                disabled={menyimpan}
+                onClick={() => onVerifikasi("approved")}
+                style={{ ...btn, backgroundColor: "#5A7A4C", color: "#FFFFFF" }}
+              >
+                Setujui
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ ...btn, backgroundColor: "#E6DCC9", color: "#3A2A1A", border: "1px solid #C4A482" }}
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
