@@ -32,6 +32,10 @@ const menuGroups = [
     title: "KOMUNITAS",
     items: [{ name: "Kelola Forum", href: "/kelola-forum" }],
   },
+  {
+    title: "AI",
+    items: [{ name: "Dokumen Chatbot", href: "/kelola-chatbot" }],
+  },
 ];
 
 export default function AdminShell({ children, admin }) {

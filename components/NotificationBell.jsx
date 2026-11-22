@@ -2,13 +2,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { setApiErrorHook } from "@/lib/api";
 import { clearLogs, fetchLogs, markAllRead, sendLog } from "@/lib/notify";
+import { groupLogs } from "@/lib/notifikasi";
 
 const POLL_MS = 15000;
 
-const SOURCE_LABEL = {
-  backend: "Backend",
-  admin: "Admin",
-  user: "User",
+const LEVEL = {
+  tinggi: { label: "Penting", bg: "#FBE9E9", fg: "#A84C4C" },
+  sedang: { label: "Perhatian", bg: "#FFF3DC", fg: "#9A6A12" },
+  rendah: { label: "Info", bg: "#EEEBE6", fg: "#7A6B5D" },
 };
 
 function timeAgo(iso) {
@@ -21,12 +22,13 @@ function timeAgo(iso) {
   return `${Math.floor(h / 24)} hari lalu`;
 }
 
-/** Lonceng di pojok kanan atas navbar: menampilkan error dari backend, admin, dan aplikasi user. */
+/** Lonceng di pojok kanan atas navbar: menampilkan masalah dari server, admin, dan aplikasi user. */
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [server, setServer] = useState([]);
   const [local, setLocal] = useState([]);
   const [unread, setUnread] = useState(0);
+  const [openKey, setOpenKey] = useState(null); // notifikasi yang detail teknisnya dibuka
   const boxRef = useRef(null);
 
   const refresh = useCallback(async () => {
@@ -117,7 +119,7 @@ export default function NotificationBell() {
     await refresh();
   }
 
-  const items = [...local, ...server];
+  const groups = groupLogs([...local, ...server]);
   const badge = unread + local.length;
 
   return (
@@ -137,7 +139,7 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="a-bell-panel" role="dialog" aria-label="Notifikasi error">
+        <div className="a-bell-panel" role="dialog" aria-label="Notifikasi masalah sistem">
           <div className="a-bell-head">
             <strong>Notifikasi</strong>
             <div className="a-bell-tools">
@@ -145,21 +147,89 @@ export default function NotificationBell() {
               <button type="button" onClick={clearAll}>Hapus semua</button>
             </div>
           </div>
+
           <div className="a-bell-list">
-            {items.length === 0 ? (
-              <div className="a-bell-empty">Tidak ada error. Semuanya aman.</div>
+            {groups.length === 0 ? (
+              <div className="a-bell-empty">Tidak ada masalah. Semuanya aman.</div>
             ) : (
-              items.map((it) => (
-                <div key={it.id} className={`a-bell-item${it.read && !it.local ? "" : " unread"}`}>
-                  <span className={`a-bell-tag ${it.source}`}>{SOURCE_LABEL[it.source]}</span>
-                  <div className="a-bell-msg">{it.message}</div>
-                  <div className="a-bell-meta">
-                    {it.path ? `${it.path} · ` : ""}
-                    {it.status ? `${it.status} · ` : ""}
-                    {timeAgo(it.createdAt)}
+              groups.map((g) => {
+                const lv = LEVEL[g.level] || LEVEL.rendah;
+                const isLocal = g.ids.some((id) => String(id).startsWith("local-"));
+                const expanded = openKey === g.key;
+                return (
+                  <div key={g.key} className={`a-bell-item${g.unread ? " unread" : ""}`}>
+                    {/* Tingkat + jumlah kejadian */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                      <span
+                        style={{
+                          background: lv.bg,
+                          color: lv.fg,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                        }}
+                      >
+                        {lv.label}
+                      </span>
+                      {g.count > 1 && (
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#7A6B5D" }}>×{g.count}</span>
+                      )}
+                    </div>
+
+                    {/* Apa yang terjadi */}
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#3A2A1A", lineHeight: 1.35 }}>
+                      {g.title}
+                    </div>
+
+                    {/* Saran tindakan */}
+                    <div style={{ fontSize: 12.5, color: "#6B5A4A", lineHeight: 1.45, marginTop: 3 }}>
+                      {g.hint}
+                    </div>
+
+                    {/* Di mana + kapan */}
+                    <div style={{ fontSize: 11.5, color: "#9A8878", marginTop: 6 }}>
+                      {g.area ? `${g.area} · ` : ""}
+                      {g.sourceLabel} · {timeAgo(g.createdAt)}
+                      {isLocal ? " · belum terkirim ke server" : ""}
+                    </div>
+
+                    {/* Detail teknis untuk developer */}
+                    <button
+                      type="button"
+                      onClick={() => setOpenKey(expanded ? null : g.key)}
+                      style={{
+                        marginTop: 6,
+                        padding: 0,
+                        background: "none",
+                        border: "none",
+                        color: "#5A3E2B",
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Detail teknis {expanded ? "▲" : "▼"}
+                    </button>
+                    {expanded && (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          padding: "8px 10px",
+                          background: "#F6F0E8",
+                          borderRadius: 6,
+                          fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+                          fontSize: 11,
+                          color: "#4A3A2A",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {g.technical}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
