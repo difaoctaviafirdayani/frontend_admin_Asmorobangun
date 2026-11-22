@@ -28,12 +28,21 @@ export default function TabelForum({ rows, onChanged }) {
   const [loadingId, setLoadingId] = useState(null);
   const [menyimpan, setMenyimpan] = useState(false);
 
-  // minta AI menganalisis satu diskusi (khusus admin), lalu tampilkan hasilnya
-  async function analisisAI(row) {
+  // Buka hasil analisis satu diskusi. Kalau sudah pernah dianalisis, tampilkan hasil yang
+  // tersimpan (status terbaru). AI baru dipanggil kalau belum ada hasil, atau paksa = true.
+  async function analisisAI(row, paksa = false) {
     setLoadingId(row.id);
     try {
+      if (!paksa) {
+        const daftar = await api("/ai/results");
+        const ada = (Array.isArray(daftar) ? daftar : []).find((r) => r.sourceId === row.id);
+        if (ada) {
+          setAnalisis({ ...ada, threadRow: row });
+          return;
+        }
+      }
       const res = await api(`/ai/analyze/thread/${row.id}`, { method: "POST" });
-      setAnalisis(res);
+      setAnalisis({ ...res, threadRow: row });
     } catch (err) {
       toast(err.message);
     } finally {
@@ -47,7 +56,7 @@ export default function TabelForum({ rows, onChanged }) {
     setMenyimpan(true);
     try {
       const res = await api(`/ai/results/${analisis.id}/verify`, { method: "PATCH", body: { status } });
-      setAnalisis(res);
+      setAnalisis({ ...res, threadRow: analisis.threadRow });
       toast(status === "approved" ? "Hasil analisis disetujui." : "Hasil analisis ditolak.");
     } catch (err) {
       toast(err.message);
@@ -188,6 +197,11 @@ export default function TabelForum({ rows, onChanged }) {
           hasil={analisis}
           menyimpan={menyimpan}
           onVerifikasi={verifikasi}
+          onUlang={() => {
+            const row = analisis.threadRow;
+            setAnalisis(null);
+            analisisAI(row, true);
+          }}
           onClose={() => setAnalisis(null)}
         />
       )}
@@ -219,7 +233,7 @@ const BARIS = [
   ["Keyakinan AI", (o) => `${Math.round(o.confidence * 100)}%`],
 ];
 
-function HasilAnalisis({ hasil, menyimpan, onVerifikasi, onClose }) {
+function HasilAnalisis({ hasil, menyimpan, onVerifikasi, onUlang, onClose }) {
   const o = hasil.output;
   const btn = { border: "none", padding: "8px 18px", borderRadius: "6px", fontSize: "14px", cursor: "pointer" };
   return (
@@ -302,6 +316,13 @@ function HasilAnalisis({ hasil, menyimpan, onVerifikasi, onClose }) {
               </button>
             </>
           )}
+          <button
+            type="button"
+            onClick={onUlang}
+            style={{ ...btn, backgroundColor: "#E6DCC9", color: "#3A2A1A", border: "1px solid #C4A482" }}
+          >
+            Analisis ulang
+          </button>
           <button
             type="button"
             onClick={onClose}
