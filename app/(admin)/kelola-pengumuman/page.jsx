@@ -2,10 +2,11 @@
 import { useState } from "react";
 import { truncate, getErrorMessage } from "@/lib/format";
 import { toPengumumanView } from "@/lib/pengumuman";
-import { api } from "@/lib/api";
+import { api, assetUrl } from "@/lib/api";
 import { useLoad } from "@/lib/useLoad";
 import { useToast } from "@/components/Toast";
 import FormModal from "@/components/FormModal";
+import Lightbox from "@/components/LightBox";
 
 const FIELDS = [
   { name: "title", label: "Judul", required: true },
@@ -18,24 +19,57 @@ const FIELDS = [
       { value: "Layanan", label: "Layanan" },
     ],
   },
-  {
-    name: "color",
-    label: "Warna label",
-    type: "select",
-    options: [
-      { value: "brown", label: "Coklat" },
-      { value: "green", label: "Hijau" },
-    ],
-  },
   { name: "body", label: "Isi pengumuman", type: "textarea", rows: 6, required: true },
   { name: "image", label: "Gambar (opsional)", type: "image" },
 ];
+
+const TH = { padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" };
+
+const THUMB_EMPTY = {
+  width: "50px",
+  height: "50px",
+  borderRadius: "10px",
+  backgroundColor: "#E8DCCB",
+  color: "#5A4A3A",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "14px",
+};
+
+function Thumb({ src, alt, onPreview }) {
+  const [gagalMuat, setGagalMuat] = useState(false);
+  const url = assetUrl(src);
+
+  if (!url || gagalMuat) return <div style={THUMB_EMPTY}>–</div>;
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt={alt}
+      onError={() => setGagalMuat(true)}
+      onClick={() => onPreview?.(url, alt)}
+      title="Klik untuk memperbesar"
+      style={{
+        width: "50px",
+        height: "50px",
+        objectFit: "cover",
+        borderRadius: "10px",
+        border: "1px solid #D4BBA5",
+        display: "block",
+        cursor: "pointer",
+      }}
+    />
+  );
+}
 
 export default function KelolaPengumumanPage() {
   const toast = useToast();
   const { data, error, reload } = useLoad(() => api("/announcements"));
   const pengumumanList = (data?.announcements ?? []).map(toPengumumanView);
   const [editing, setEditing] = useState(null);
+  const [preview, setPreview] = useState(null); // { url, alt } atau null
 
   async function simpan(values) {
     if (editing === "new") {
@@ -80,11 +114,7 @@ export default function KelolaPengumumanPage() {
         <FormModal
           title={editing === "new" ? "Tulis pengumuman" : "Edit pengumuman"}
           fields={FIELDS}
-          initial={
-            editing === "new"
-              ? { type: "Umum", color: "brown" }
-              : editing
-          }
+          initial={editing === "new" ? { type: "Umum" } : editing}
           onSubmit={simpan}
           onClose={() => setEditing(null)}
         />
@@ -125,15 +155,19 @@ export default function KelolaPengumumanPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
             <thead>
               <tr style={{ borderBottom: "1.5px solid #D4BBA5", color: "#3A2A1A" }}>
-                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" }}>JUDUL</th>
-                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" }}>KATEGORI</th>
-                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px" }}>TANGGAL</th>
-                <th style={{ padding: "16px 20px", fontWeight: "700", fontSize: "14px", letterSpacing: "0.5px", textAlign: "center" }}>AKSI</th>
+                <th style={TH}>GAMBAR</th>
+                <th style={TH}>JUDUL</th>
+                <th style={TH}>KATEGORI</th>
+                <th style={TH}>TANGGAL</th>
+                <th style={{ ...TH, textAlign: "center" }}>AKSI</th>
               </tr>
             </thead>
             <tbody>
               {pengumumanList.map((row) => (
                 <tr key={row.id} style={{ borderBottom: "1px solid #E6D8C3" }}>
+                  <td style={{ padding: "16px 20px", verticalAlign: "middle" }}>
+                    <Thumb src={row.image} alt={row.title} onPreview={(url, alt) => setPreview({ url, alt })} />
+                  </td>
                   <td style={{ padding: "16px 20px", color: "#3A2A1A", verticalAlign: "middle", maxWidth: "380px", lineHeight: "1.5" }}>
                     {truncate(row.title, 80)}
                   </td>
@@ -194,6 +228,8 @@ export default function KelolaPengumumanPage() {
           </table>
         </div>
       </div>
+
+      {preview && <Lightbox url={preview.url} alt={preview.alt} onClose={() => setPreview(null)} />}
     </div>
   );
 }
