@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatDate } from "@/lib/format";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/Toast";
@@ -189,7 +189,20 @@ function FormJawab({ thread, replies, onSubmit, onClose }) {
   const toast = useToast();
   const [teks, setTeks] = useState("");
   const [mengirim, setMengirim] = useState(false);
-  const btn = { border: "none", padding: "8px 18px", borderRadius: "6px", fontSize: "14px", cursor: "pointer" };
+
+  // Tutup pakai Esc + kunci scroll halaman selama modal terbuka
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape" && !mengirim) onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose, mengirim]);
 
   async function kirim() {
     if (!teks.trim()) {
@@ -206,114 +219,168 @@ function FormJawab({ thread, replies, onSubmit, onClose }) {
     }
   }
 
+  const labelStyle = { display: "block", fontSize: "14px", fontWeight: 500, color: "#3A2A1A", marginBottom: "8px" };
+  const btnBase = {
+    border: "none",
+    padding: "11px 24px",
+    borderRadius: "10px",
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: mengirim ? "not-allowed" : "pointer",
+    fontFamily: "inherit",
+  };
+
   return (
     <div
       onClick={() => !mengirim && onClose()}
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(58,42,26,0.45)",
+        backgroundColor: "rgba(0, 0, 0, 0.4)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "16px",
-        zIndex: 1000,
+        padding: "24px",
+        zIndex: 9999,
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
         onClick={(e) => e.stopPropagation()}
         style={{
-          backgroundColor: "#FDFCEA",
-          border: "1.5px solid #D4BBA5",
-          borderRadius: "12px",
-          padding: "24px",
+          backgroundColor: "#FFFFFF",
+          borderRadius: "20px",
           width: "100%",
-          maxWidth: "560px",
-          maxHeight: "90vh",
+          maxWidth: "620px",
+          maxHeight: "92vh",
           overflowY: "auto",
           color: "#3A2A1A",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
         }}
       >
-        <h2 style={{ fontSize: "22px", fontWeight: "normal", marginBottom: "4px" }}>Jawab diskusi</h2>
-        <p style={{ color: "#7A6A5A", fontSize: "13px", marginBottom: "16px" }}>
-          {thread.category} · {thread.userName}
-        </p>
-
+        {/* Header */}
         <div
           style={{
-            backgroundColor: "#FFFFFF",
-            border: "1px solid #E6D8C3",
-            borderRadius: "8px",
-            padding: "14px",
-            marginBottom: "16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "26px 28px 20px",
+            borderBottom: "1px solid #F1E6DF",
           }}
         >
-          <strong style={{ display: "block", marginBottom: "6px" }}>{thread.title}</strong>
-          <p style={{ margin: 0, lineHeight: 1.5, fontSize: "14px", whiteSpace: "pre-wrap" }}>{thread.content}</p>
-        </div>
-
-        {replies.length > 0 && (
-          <div style={{ marginBottom: "16px" }}>
-            <div style={{ fontSize: "13px", color: "#7A6A5A", marginBottom: "8px" }}>Balasan sebelumnya</div>
-            {replies.map((r, i) => (
-              <div
-                key={r.id ?? i}
-                style={{
-                  borderLeft: "3px solid #C4A482",
-                  padding: "4px 12px",
-                  marginBottom: "8px",
-                  fontSize: "14px",
-                  lineHeight: 1.5,
-                }}
-              >
-                <strong>{r.userName ?? r.username ?? "Pengguna"}</strong>
-                {r.date ? <span style={{ color: "#7A6A5A", fontSize: "12px" }}> · {formatDate(r.date)}</span> : null}
-                <div style={{ whiteSpace: "pre-wrap" }}>{r.content ?? r.body}</div>
-              </div>
-            ))}
+          <div>
+            <h2 style={{ margin: 0, fontSize: "22px", fontWeight: 600, color: "#3A2A1A" }}>Jawab diskusi</h2>
+            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#9A8272" }}>
+              {thread.category} · {thread.userName}
+            </p>
           </div>
-        )}
-
-        <label style={{ display: "block", fontSize: "14px", fontWeight: 600, marginBottom: "6px" }}>
-          Jawaban admin
-        </label>
-        <textarea
-          value={teks}
-          onChange={(e) => setTeks(e.target.value)}
-          rows={5}
-          placeholder="Tulis jawaban untuk diskusi ini..."
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            padding: "10px 12px",
-            borderRadius: "8px",
-            border: "1px solid #C4A482",
-            backgroundColor: "#FFFFFF",
-            color: "#3A2A1A",
-            fontSize: "14px",
-            fontFamily: "inherit",
-            resize: "vertical",
-            marginBottom: "16px",
-          }}
-        />
-
-        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
           <button
             type="button"
             onClick={onClose}
             disabled={mengirim}
-            style={{ ...btn, backgroundColor: "#E6DCC9", color: "#3A2A1A", border: "1px solid #C4A482" }}
+            aria-label="Tutup"
+            style={{
+              width: "40px",
+              height: "40px",
+              borderRadius: "50%",
+              border: "none",
+              backgroundColor: "#F1E6DF",
+              color: "#5A3E2B",
+              fontSize: "18px",
+              fontWeight: 700,
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
           >
-            Batal
+            ✕
           </button>
-          <button
-            type="button"
-            onClick={kirim}
-            disabled={mengirim}
-            style={{ ...btn, backgroundColor: "#5A3E2B", color: "#FFFFFF", opacity: mengirim ? 0.7 : 1 }}
+        </div>
+
+        {/* Isi */}
+        <div style={{ padding: "22px 28px 28px" }}>
+          <label style={labelStyle}>Pertanyaan</label>
+          <div
+            style={{
+              backgroundColor: "#FFFFFF",
+              border: "1px solid #E6D8C3",
+              borderRadius: "12px",
+              padding: "14px 16px",
+              marginBottom: "20px",
+            }}
           >
-            {mengirim ? "Mengirim..." : "Kirim jawaban"}
-          </button>
+            <strong style={{ display: "block", marginBottom: "6px", color: "#3A2A1A" }}>{thread.title}</strong>
+            <p style={{ margin: 0, lineHeight: 1.5, fontSize: "14px", color: "#5A4A3A", whiteSpace: "pre-wrap" }}>
+              {thread.content}
+            </p>
+          </div>
+
+          {replies.length > 0 && (
+            <div style={{ marginBottom: "20px" }}>
+              <label style={labelStyle}>Balasan sebelumnya</label>
+              {replies.map((r, i) => (
+                <div
+                  key={r.id ?? i}
+                  style={{
+                    backgroundColor: "#FBF6F2",
+                    border: "1px solid #F1E6DF",
+                    borderRadius: "12px",
+                    padding: "12px 16px",
+                    marginBottom: "8px",
+                    fontSize: "14px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <strong>{r.userName ?? r.username ?? "Pengguna"}</strong>
+                  {r.date ? (
+                    <span style={{ color: "#9A8272", fontSize: "12px" }}> · {formatDate(r.date)}</span>
+                  ) : null}
+                  <div style={{ color: "#5A4A3A", whiteSpace: "pre-wrap" }}>{r.content ?? r.body}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <label style={labelStyle}>Jawaban admin</label>
+          <textarea
+            value={teks}
+            onChange={(e) => setTeks(e.target.value)}
+            rows={5}
+            placeholder="Tulis jawaban untuk diskusi ini..."
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "12px 14px",
+              borderRadius: "12px",
+              border: "1px solid #E6D8C3",
+              backgroundColor: "#FFFFFF",
+              color: "#3A2A1A",
+              fontSize: "14px",
+              fontFamily: "inherit",
+              resize: "vertical",
+              outline: "none",
+              marginBottom: "22px",
+            }}
+          />
+
+          <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={mengirim}
+              style={{ ...btnBase, backgroundColor: "#F1E6DF", color: "#5A3E2B" }}
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={kirim}
+              disabled={mengirim}
+              style={{ ...btnBase, backgroundColor: "#764B37", color: "#FFFFFF", opacity: mengirim ? 0.7 : 1 }}
+            >
+              {mengirim ? "Mengirim..." : "Kirim jawaban"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

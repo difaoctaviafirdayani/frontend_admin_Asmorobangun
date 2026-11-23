@@ -16,6 +16,7 @@ const menuGroups = [
     items: [
       { name: "Pendaftar & Booking", href: "/pendaftar" },
       { name: "Pesanan Topeng", href: "/pesanan-topeng" },
+      { name: "Statistik", href: "/statistik" },
     ],
   },
   {
