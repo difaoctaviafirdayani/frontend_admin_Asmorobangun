@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { api, getToken, clearSession } from "@/lib/api";
-import NotificationBell from "@/components/NotificationBell";
 
 const menuGroups = [
   {
@@ -16,8 +15,11 @@ const menuGroups = [
     items: [
       { name: "Pendaftar & Booking", href: "/pendaftar" },
       { name: "Pesanan Topeng", href: "/pesanan-topeng" },
-      { name: "Statistik", href: "/statistik" },
     ],
+  },
+  {
+    title: "ANALITIK",
+    items: [{ name: "Diagram Statistik", href: "/statistik" }],
   },
   {
     title: "KONTEN",
@@ -45,7 +47,6 @@ export default function AdminShell({ children, admin }) {
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
 
-  // Hapus cookie sesi di server + data login di browser, lalu ke halaman login.
   async function endSession() {
     try {
       await fetch("/api/session", { method: "DELETE" });
@@ -56,8 +57,6 @@ export default function AdminShell({ children, admin }) {
     router.replace("/login");
   }
 
-  // Server sudah memverifikasi admin (DAL). Di sini hanya memastikan token untuk
-  // request API di browser (localStorage) masih ada. Kalau hilang, keluar dengan bersih.
   useEffect(() => {
     if (!getToken()) {
       void endSession();
@@ -67,14 +66,13 @@ export default function AdminShell({ children, admin }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Tutup drawer otomatis tiap pindah halaman
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
   const handleLogout = async () => {
     try {
-      await api("/auth/logout", { method: "POST" }); // cabut token di backend
+      await api("/auth/logout", { method: "POST" });
     } catch {
       /* tetap logout walau backend tidak terjangkau */
     }
@@ -87,13 +85,11 @@ export default function AdminShell({ children, admin }) {
 
   return (
     <div className="m-shell">
-      {/* Overlay gelap, klik buat nutup drawer */}
       <div
         className={`m-overlay ${open ? "open" : ""}`}
         onClick={() => setOpen(false)}
       />
 
-      {/* Sidebar jadi drawer */}
       <aside className={`m-drawer ${open ? "open" : ""}`}>
         <div className="m-drawer-label">MENU</div>
         <nav>
@@ -118,14 +114,13 @@ export default function AdminShell({ children, admin }) {
         </nav>
 
         <div className="m-drawer-foot">
-          <div className="m-admin-email">{admin.email}</div>
+          <div className="m-admin-email">{admin?.email}</div>
           <button type="button" className="m-logout" onClick={handleLogout}>
             Logout
           </button>
         </div>
       </aside>
 
-      {/* Konten utama */}
       <div className="m-content">
         <header className="m-topbar">
           <button
@@ -139,9 +134,7 @@ export default function AdminShell({ children, admin }) {
             <span />
           </button>
           <div className="m-logo">asmorobangun</div>
-          <div className="m-topbar-right">
-            <NotificationBell />
-          </div>
+          <div className="m-topbar-right" />
         </header>
 
         {children}
